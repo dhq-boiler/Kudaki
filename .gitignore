@@ -1,0 +1,47 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+*.log
+*.tlog
+
+# Visual Studio user files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+
+# NuGet
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+packages/
+!**/packages/build/
+
+# ReSharper / Rider
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+.idea/
+
+# Publish output
+publish/
+*.publishsettings
+
+# Files that might contain secrets
+*.pfx
+*.snk
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# OS
+Thumbs.db
+.DS_Store
