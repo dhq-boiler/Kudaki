@@ -278,18 +278,16 @@
                                          IsEnabled="{Binding IsLeaf}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="実績 (h)" Style="{StaticResource FieldLabel}"/>
-                                <TextBox AutomationProperties.AutomationId="PropActual"
-                                         Text="{Binding ActualHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
+                                <TextBlock Style="{StaticResource FieldLabel}">
+                                    <Run Text="残 (h)"/>
+                                    <Run Text=" — 毎日更新" Foreground="{DynamicResource ControlSubtleForeground}" FontSize="10"/>
+                                </TextBlock>
+                                <TextBox AutomationProperties.AutomationId="PropRemaining"
+                                         Text="{Binding RemainingHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
                                          Style="{StaticResource FieldBox}"
                                          IsEnabled="{Binding IsLeaf}"/>
                             </StackPanel>
                         </Grid>
-
-                        <TextBlock Text="進捗 (%)" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding ProgressPercent, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
-                                 Style="{StaticResource FieldBox}"
-                                 IsEnabled="{Binding IsLeaf}"/>
 
                         <TextBlock Text="担当者" Style="{StaticResource FieldLabel}"/>
                         <TextBox Text="{Binding Assignee, UpdateSourceTrigger=PropertyChanged}"
@@ -312,7 +310,7 @@
                                 BorderThickness="0,1,0,0"
                                 Margin="0,8,0,8"/>
 
-                        <TextBlock Text="集計 (子から)" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="集計 (葉から派生)" Style="{StaticResource FieldLabel}"/>
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -329,7 +327,18 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="実績合計: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Text="残合計: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
+                                <Run Text="{Binding RolledUpRemainingHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
+                                <Run Text="h"/>
+                            </TextBlock>
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="消化: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
                             <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
                                 <Run Text="{Binding RolledUpActualHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
                                 <Run Text="h"/>

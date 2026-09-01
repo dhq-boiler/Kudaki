@@ -61,27 +61,16 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         }
     }
 
-    public double? ActualHours
+    // 「毎日更新する残時間」が主入力。実績と進捗はここから派生。
+    public double? RemainingHours
     {
-        get => _model.ActualHours;
+        get => _model.RemainingHours;
         set
         {
-            if (Nullable.Equals(_model.ActualHours, value)) return;
-            _model.ActualHours = value;
-            OnPropertyChanged();
-            NotifyRollupChanged();
-        }
-    }
-
-    public int? ProgressPercent
-    {
-        get => _model.ProgressPercent;
-        set
-        {
-            // 0-100 に clamp。null はそのまま (未入力の意味)。
-            var clamped = value.HasValue ? Math.Clamp(value.Value, 0, 100) : (int?)null;
-            if (Nullable.Equals(_model.ProgressPercent, clamped)) return;
-            _model.ProgressPercent = clamped;
+            // 負値を弾く (0 は「完了」の意味なので許可)。
+            var clamped = value.HasValue && value.Value < 0 ? 0.0 : value;
+            if (Nullable.Equals(_model.RemainingHours, clamped)) return;
+            _model.RemainingHours = clamped;
             OnPropertyChanged();
             NotifyRollupChanged();
         }
@@ -125,6 +114,7 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     public bool IsLeaf => Children.Count == 0;
 
     public double RolledUpEstimateHours => _model.GetRolledUpEstimateHours();
+    public double RolledUpRemainingHours => _model.GetRolledUpRemainingHours();
     public double RolledUpActualHours => _model.GetRolledUpActualHours();
     public int? RolledUpProgressPercent => _model.GetRolledUpProgressPercent();
 
@@ -152,6 +142,7 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     private void NotifyRollupChanged()
     {
         OnPropertyChanged(nameof(RolledUpEstimateHours));
+        OnPropertyChanged(nameof(RolledUpRemainingHours));
         OnPropertyChanged(nameof(RolledUpActualHours));
         OnPropertyChanged(nameof(RolledUpProgressPercent));
         OnPropertyChanged(nameof(NeedsBreakdown));

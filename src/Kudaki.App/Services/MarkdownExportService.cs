@@ -55,7 +55,7 @@ public sealed class MarkdownExportService
         var indent = new string(' ', indentLevel * 2);
 
         // 進捗 100% なら [x]、それ以外は [ ]
-        var progress = task.IsLeaf ? task.ProgressPercent : task.GetRolledUpProgressPercent();
+        var progress = task.GetRolledUpProgressPercent();
         var check = progress == 100 ? "[x]" : "[ ]";
 
         // ⚠ は葉タスクで見積 > 閾値 のときだけ
@@ -104,20 +104,20 @@ public sealed class MarkdownExportService
         {
             if (task.EstimateHours is double est)
                 parts.Add($"見積 {FormatHours(est)}h");
-            if (task.ActualHours is double act)
-                parts.Add($"実績 {FormatHours(act)}h");
-            if (task.ProgressPercent is int prog)
-                parts.Add($"進捗 {prog}%");
+            if (task.RemainingHours is double rem)
+                parts.Add($"残 {FormatHours(rem)}h");
+            var prog = task.GetRolledUpProgressPercent();
+            if (prog.HasValue) parts.Add($"進捗 {prog.Value}%");
         }
         else
         {
-            // 内部ノード: rolled-up 値を表示 ("合計" と明示して混同を防ぐ)
+            // 内部ノード: 葉から派生した合計を表示
             var est = task.GetRolledUpEstimateHours();
-            var act = task.GetRolledUpActualHours();
+            var rem = task.GetRolledUpRemainingHours();
             var prog = task.GetRolledUpProgressPercent();
 
             if (est > 0) parts.Add($"見積合計 {FormatHours(est)}h");
-            if (act > 0) parts.Add($"実績合計 {FormatHours(act)}h");
+            if (est > 0) parts.Add($"残合計 {FormatHours(rem)}h");
             if (prog.HasValue) parts.Add($"進捗 {prog.Value}%");
         }
 
