@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo/lockup-horizontal.png" alt="Kudaki" width="620"/>
+  <img src="docs/logo/lockup-horizontal.png" alt="Kudaki" width="900"/>
 </p>
 
 # Kudaki
