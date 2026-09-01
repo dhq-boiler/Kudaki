@@ -1,0 +1,283 @@
+<Window x:Class="Kudaki.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Kudaki.Installer.ViewModels"
+        xmlns:conv="clr-namespace:Kudaki.Installer.Converters"
+        mc:Ignorable="d"
+        Title="Kudaki セットアップ"
+        Height="480" Width="640"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundColour}"
+        Foreground="{DynamicResource ControlDefaultForeground}"
+        FontFamily="Yu Gothic UI, Segoe UI"
+        FontSize="13"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True">
+
+    <Window.Resources>
+        <conv:EnumToVisibilityConverter x:Key="EnumToVis"/>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource PrimaryDefaultBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryDefaultBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryMouseOverBackground}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource PrimaryMouseOverBorderBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryPressedBackground}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+
+        <!-- ヘッダー: 製品名 + サブタイトル -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource WindowTitleColour}"
+                BorderBrush="{DynamicResource SubtleDividerBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <StackPanel>
+                <TextBlock Text="Kudaki"
+                           FontSize="24"
+                           FontWeight="Light"
+                           Foreground="{DynamicResource ControlDefaultForeground}"/>
+                <TextBlock Text="{Binding ProductNameWithVersion, StringFormat=セットアップ — {0}}"
+                           FontSize="11"
+                           Margin="0,2,0,0"
+                           Foreground="{DynamicResource ControlSubtleForeground}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ボタンバー -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource ContainerBackground}"
+                BorderBrush="{DynamicResource SubtleDividerBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左: キャンセル (Welcome / InstallPath でのみ) -->
+                <Button Grid.Column="0"
+                        Content="キャンセル"
+                        HorizontalAlignment="Left"
+                        Command="{Binding CancelCommand}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Step.Value}" Value="Welcome">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Step.Value}" Value="InstallPath">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- 右: ステップ固有のボタン群 -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <!-- Welcome -->
+                    <Button Content="次へ"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding GoNextCommand}"
+                            Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Welcome}"/>
+
+                    <!-- InstallPath -->
+                    <Button Content="戻る"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding GoBackCommand}"
+                            Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=InstallPath}"/>
+                    <Button Content="インストール"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding RunInstallCommand}"
+                            Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=InstallPath}"/>
+
+                    <!-- Done -->
+                    <Button Content="閉じる"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding CloseAndOptionallyLaunchCommand}"
+                            Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Done}"/>
+
+                    <!-- Error -->
+                    <Button Content="閉じる"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding CancelCommand}"
+                            Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Error}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- コンテンツエリア (4 ページ) -->
+        <Grid Margin="24,24,24,16">
+
+            <!-- ==================== Welcome ==================== -->
+            <StackPanel Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Welcome}">
+                <TextBlock Text="ようこそ"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,16"/>
+                <TextBlock TextWrapping="Wrap"
+                           LineHeight="22"
+                           Foreground="{DynamicResource ControlSecondaryForeground}">
+                    <Run Text="Kudaki は Work Breakdown Structure エディターです。"/>
+                    <LineBreak/>
+                    <Run Text="Excel より速く/楽にタスクを砕くことに全振りしています。"/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="このセットアップは Kudaki をあなたのユーザー領域にインストールします "/>
+                    <Run Text="(管理者権限は要りません)。"
+                         Foreground="{DynamicResource ControlSubtleForeground}"/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="続行するには「次へ」をクリックしてください。"/>
+                </TextBlock>
+            </StackPanel>
+
+            <!-- ==================== InstallPath ==================== -->
+            <StackPanel Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=InstallPath}">
+                <TextBlock Text="インストール先"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,16"/>
+                <TextBlock Text="Kudaki のインストール先フォルダを指定してください:"
+                           Foreground="{DynamicResource ControlSecondaryForeground}"
+                           Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0"
+                             Text="{Binding InstallPath.Value, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalContentAlignment="Center"
+                             Height="30"/>
+                    <Button Grid.Column="1"
+                            Content="参照..."
+                            Margin="8,0,0,0"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding BrowseInstallPathCommand}"/>
+                </Grid>
+
+                <TextBlock Text="オプション:"
+                           Foreground="{DynamicResource ControlSecondaryForeground}"
+                           Margin="0,8,0,6"/>
+                <CheckBox Content="スタートメニューにショートカットを作成する"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          IsChecked="{Binding CreateStartMenuShortcut.Value}"
+                          Margin="0,0,0,6"/>
+                <CheckBox Content="デスクトップにショートカットを作成する"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          IsChecked="{Binding CreateDesktopShortcut.Value}"/>
+            </StackPanel>
+
+            <!-- ==================== Progress ==================== -->
+            <StackPanel VerticalAlignment="Center"
+                        Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Progress}">
+                <TextBlock Text="処理中..."
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,24"
+                           HorizontalAlignment="Center"/>
+                <ProgressBar Height="6"
+                             Minimum="0" Maximum="1"
+                             Value="{Binding ProgressFraction.Value, Mode=OneWay}"
+                             Margin="0,0,0,12"/>
+                <TextBlock Text="{Binding ProgressMessage.Value}"
+                           Foreground="{DynamicResource ControlSubtleForeground}"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ==================== Done ==================== -->
+            <StackPanel VerticalAlignment="Center"
+                        Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Done}">
+                <TextBlock FontSize="20"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,16">
+                    <Run Text="✓" Foreground="{DynamicResource PrimaryDefaultBackground}"/>
+                    <Run Text=" 完了しました"/>
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           Foreground="{DynamicResource ControlSecondaryForeground}"
+                           Margin="0,0,0,20"
+                           Text="{Binding DoneMessage.Value, Mode=OneWay}"/>
+
+                <CheckBox Content="今すぐ Kudaki を起動する"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          IsChecked="{Binding LaunchAfterInstall.Value}"
+                          HorizontalAlignment="Center">
+                    <CheckBox.Style>
+                        <Style TargetType="CheckBox">
+                            <!-- アンインストール完了時は起動チェックは要らない -->
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsUninstallMode}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </CheckBox.Style>
+                </CheckBox>
+            </StackPanel>
+
+            <!-- ==================== Error ==================== -->
+            <StackPanel VerticalAlignment="Center"
+                        Visibility="{Binding Step.Value, Converter={StaticResource EnumToVis}, ConverterParameter=Error}">
+                <TextBlock FontSize="20"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,16">
+                    <Run Text="⚠" Foreground="{DynamicResource WarningGlyphForeground}"/>
+                    <Run Text=" エラーが発生しました"/>
+                </TextBlock>
+                <TextBlock Text="{Binding ErrorMessage.Value}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource ControlDefaultForeground}"
+                           Background="{DynamicResource ControlDarkerBackground}"
+                           Padding="12"
+                           MaxHeight="200"
+                           HorizontalAlignment="Stretch"/>
+            </StackPanel>
+
+        </Grid>
+    </DockPanel>
+</Window>

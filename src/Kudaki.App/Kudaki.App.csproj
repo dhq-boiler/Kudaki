@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -6,6 +6,29 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>Kudaki</AssemblyName>
+    <RootNamespace>Kudaki.App</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Product>Kudaki</Product>
+    <AssemblyTitle>Kudaki</AssemblyTitle>
+    <Description>Work Breakdown Structure エディター — Excel より速く/楽に。ダーク UI, YAML 保存, 砕き警告付き</Description>
+    <Company>dhq_boiler</Company>
+    <Authors>dhq_boiler</Authors>
+    <Copyright>Copyright © 2026 dhq_boiler</Copyright>
+    <PackageProjectUrl>https://github.com/dhq-boiler/Kudaki</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dhq-boiler/Kudaki</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- publish 時のみ効く。ReadyToRun で起動を速く、TrimUnused は WPF が非対応なので off。 -->
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Release'">true</PublishReadyToRun>
+    <SelfContained Condition="'$(PublishSelfContained)' == 'true'">true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>

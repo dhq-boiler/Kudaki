@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Kudaki.App/Kudaki.App.csproj" />
+    <Project Path="src/Kudaki.Installer/Kudaki.Installer.csproj" />
   </Folder>
 </Solution>

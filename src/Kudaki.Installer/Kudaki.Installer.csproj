@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>KudakiSetup</AssemblyName>
+    <RootNamespace>Kudaki.Installer</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Product>Kudaki Setup</Product>
+    <AssemblyTitle>Kudaki Setup</AssemblyTitle>
+    <Description>Kudaki のインストーラー</Description>
+    <Company>dhq_boiler</Company>
+    <Authors>dhq_boiler</Authors>
+    <Copyright>Copyright © 2026 dhq_boiler</Copyright>
+    <PackageProjectUrl>https://github.com/dhq-boiler/Kudaki</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dhq-boiler/Kudaki</RepositoryUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- リリース publish は SingleFile + SelfContained で 1 本の exe に固める。
+         インストーラーは配置後に「別名でコピーしてアンインストーラーとして再起動」するので、
+         apphost + 独立 dll 構成だと動かない (KudakiUninstaller.exe から KudakiUninstaller.dll を
+         探して失敗する)。SingleFile なら中身が exe に埋まっているので別名リネームでも動く。 -->
+    <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(Configuration)' == 'Release'">true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(Configuration)' == 'Release'">true</EnableCompressionInSingleFile>
+    <SelfContained Condition="'$(PublishSelfContained)' == 'true'">true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Payload zip は publish 出力を圧縮したもの (git 管理外、リリース前に PowerShell で生成)。
+         EmbeddedResource として同梱、実行時に Assembly.GetManifestResourceStream で取り出す。 -->
+    <EmbeddedResource Include="Payload\Kudaki-payload.zip" LogicalName="Payload.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="R3" Version="1.3.1" />
+    <PackageReference Include="R3Extensions.WPF" Version="1.3.1" />
+  </ItemGroup>
+
+</Project>
