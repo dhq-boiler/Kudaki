@@ -1,8 +1,11 @@
+using System;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Kudaki.App.Services;
 using Kudaki.App.ViewModels;
 using R3;
@@ -50,15 +53,57 @@ public partial class MainWindow : Window
 
         // Landing overlay の可視制御。XAML 側 Visibility バインドで拾えなかったので
         // R3 の Subscribe で code-behind から直接切り替える。
+        // Kudaki の起動が速すぎて素で消すとサブリミナル状態になるので、最低 800ms は
+        // 見せてから 300ms かけて opacity で fade out する。
         vm.IsLoading.Subscribe(loading =>
         {
-            LandingOverlay.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+            if (loading)
+            {
+                LandingOverlay.BeginAnimation(OpacityProperty, null);  // 進行中アニメを解除
+                LandingOverlay.Opacity = 1.0;
+                LandingOverlay.Visibility = Visibility.Visible;
+                _landingShownAt = DateTime.Now;
+            }
+            else
+            {
+                _ = HideLandingWithMinDisplayTimeAsync();
+            }
+        });
+
+        // Diff Overlay の可視制御。CurrentPendingSet が入ってきたら表示、抜けたら隠す。
+        vm.CurrentPendingSet.Subscribe(set =>
+        {
+            DiffOverlay.Visibility = set is not null ? Visibility.Visible : Visibility.Collapsed;
         });
 
         ((App)Application.Current).ScheduleUpdateCheck();
     }
 
     private MainViewModel Vm => (MainViewModel)DataContext;
+
+    private DateTime _landingShownAt;
+    private static readonly TimeSpan LandingMinDisplay = TimeSpan.FromMilliseconds(2500);
+    private static readonly TimeSpan LandingFadeOut = TimeSpan.FromMilliseconds(400);
+
+    // ロード完了 (IsLoading=false) を受けて Landing を消す。最低表示時間を守り、
+    // 到達までまだ余裕があれば Task.Delay で待ってから opacity で fade out する。
+    private async Task HideLandingWithMinDisplayTimeAsync()
+    {
+        var shown = DateTime.Now - _landingShownAt;
+        var remainder = LandingMinDisplay - shown;
+        if (remainder > TimeSpan.Zero)
+        {
+            await Task.Delay(remainder).ConfigureAwait(true);
+        }
+        var anim = new DoubleAnimation
+        {
+            From = 1.0,
+            To = 0.0,
+            Duration = new Duration(LandingFadeOut),
+        };
+        anim.Completed += (_, _) => LandingOverlay.Visibility = Visibility.Collapsed;
+        LandingOverlay.BeginAnimation(OpacityProperty, anim);
+    }
 
     private void Tree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {

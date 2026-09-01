@@ -44,6 +44,50 @@ public sealed partial class MainViewModel : ObservableObject
         LoadDocument(new WbsDocument());
         // SelectedTask が切り替わったら候補一覧を再計算
         SelectedTask.Subscribe(_ => RecomputeSelectablePredecessors());
+        WirePendingChangesQueue();
+    }
+
+    // MCP propose_changes 経由で PendingChangesService.Pending に投入された
+    // PendingChangeSet の先頭を CurrentPendingSet に晒す。UI 側は
+    // CurrentPendingSet != null のあいだ Diff Overlay を表示して承認/却下を待つ。
+    private void WirePendingChangesQueue()
+    {
+        var svc = Services.Mcp.PendingChangesService.Instance;
+        UpdateCurrentPending();
+        // ReadOnlyObservableCollection.CollectionChanged は protected なので
+        // INotifyCollectionChanged にキャストして subscribe。
+        ((System.Collections.Specialized.INotifyCollectionChanged)svc.Pending)
+            .CollectionChanged += (_, _) => UpdateCurrentPending();
+
+        void UpdateCurrentPending()
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is not null && !dispatcher.CheckAccess())
+            {
+                dispatcher.BeginInvoke(new System.Action(UpdateCurrentPending));
+                return;
+            }
+            CurrentPendingSet.Value = svc.Pending.Count > 0 ? svc.Pending[0] : null;
+        }
+    }
+
+    // Diff Overlay に晒す現在レビュー中の Set。CollectionChanged で更新される。
+    public BindableReactiveProperty<Services.Mcp.PendingChangeSet?> CurrentPendingSet { get; } = new(null);
+
+    [RelayCommand]
+    private void ApproveCurrentPending()
+    {
+        var set = CurrentPendingSet.Value;
+        if (set is null) return;
+        Services.Mcp.PendingChangesService.Instance.Approve(set.Id);
+    }
+
+    [RelayCommand]
+    private void RejectCurrentPending()
+    {
+        var set = CurrentPendingSet.Value;
+        if (set is null) return;
+        Services.Mcp.PendingChangesService.Instance.Reject(set.Id);
     }
 
     private void RecomputeSelectablePredecessors()

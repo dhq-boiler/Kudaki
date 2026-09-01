@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         xmlns:vm="clr-namespace:Kudaki.App.ViewModels"
+        xmlns:models="clr-namespace:Kudaki.App.Models"
         xmlns:conv="clr-namespace:Kudaki.App.Converters"
         xmlns:behaviors="clr-namespace:Kudaki.App.Behaviors"
         mc:Ignorable="d"
@@ -666,6 +667,179 @@
 
         </Grid>
     </DockPanel>
+
+    <!-- ==================== Diff Overlay (MCP propose_changes レビュー) ==================== -->
+    <!-- MainViewModel.CurrentPendingSet が非 null のあいだ、TreeView 側の上に
+         半透明黒でモーダル的に載せる。承認/却下は VM のコマンドに直接バインド。
+         Visibility は Landing と同じ理由で code-behind の Subscribe で切り替える。 -->
+    <Grid x:Name="DiffOverlay"
+          Panel.ZIndex="90"
+          Background="#B3000000"
+          Visibility="Collapsed">
+        <Border Background="{DynamicResource ContainerBackground}"
+                BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                MaxWidth="760"
+                MaxHeight="620"
+                Margin="40"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center">
+            <DockPanel>
+                <!-- Header -->
+                <Border DockPanel.Dock="Top"
+                        Padding="20,16"
+                        BorderBrush="{DynamicResource SubtleDividerBrush}"
+                        BorderThickness="0,0,0,1">
+                    <StackPanel>
+                        <TextBlock Text="AI からの変更提案"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ControlDefaultForeground}"/>
+                        <TextBlock FontSize="11"
+                                   Margin="0,4,0,0"
+                                   Foreground="{DynamicResource ControlSubtleForeground}">
+                            <Run Text="送信元: "/>
+                            <Run Text="{Binding CurrentPendingSet.Value.Source, Mode=OneWay, TargetNullValue='(不明)'}"/>
+                            <Run Text=" · "/>
+                            <Run Text="{Binding CurrentPendingSet.Value.Changes.Count, Mode=OneWay, StringFormat={}{0} 件の変更}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Buttons (bottom, docked before scrollable content) -->
+                <Border DockPanel.Dock="Bottom"
+                        Padding="20,12"
+                        BorderBrush="{DynamicResource SubtleDividerBrush}"
+                        BorderThickness="0,1,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="却下 (全部)"
+                                Command="{Binding RejectCurrentPendingCommand}"
+                                Padding="16,6"
+                                Margin="0,0,8,0"
+                                Background="Transparent"
+                                Foreground="{DynamicResource ControlDefaultForeground}"
+                                BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
+                                BorderThickness="1"
+                                Cursor="Hand"/>
+                        <Button Content="承認 (全部反映)"
+                                Command="{Binding ApproveCurrentPendingCommand}"
+                                Padding="16,6"
+                                Background="{DynamicResource PrimaryDefaultBackground}"
+                                Foreground="{DynamicResource PrimaryForeground}"
+                                BorderBrush="{DynamicResource PrimaryDefaultBorderBrush}"
+                                BorderThickness="1"
+                                Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Changes list -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <ItemsControl ItemsSource="{Binding CurrentPendingSet.Value.Changes}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:PendingChange}">
+                                <Border Margin="0,0,0,6" Padding="10,8" CornerRadius="3">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Op}" Value="Add">
+                                                    <Setter Property="Background" Value="#402D7A3D"/>
+                                                    <Setter Property="BorderBrush" Value="#FF2D7A3D"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Op}" Value="Delete">
+                                                    <Setter Property="Background" Value="#407A2D2D"/>
+                                                    <Setter Property="BorderBrush" Value="#FF7A2D2D"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Op}" Value="Update">
+                                                    <Setter Property="Background" Value="#407A5A2D"/>
+                                                    <Setter Property="BorderBrush" Value="#FF7A5A2D"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock FontFamily="Consolas"
+                                                       FontWeight="Bold"
+                                                       MinWidth="14"
+                                                       FontSize="14"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource ControlDefaultForeground}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Op}" Value="Add">
+                                                                <Setter Property="Text" Value="+"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Op}" Value="Delete">
+                                                                <Setter Property="Text" Value="-"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Op}" Value="Update">
+                                                                <Setter Property="Text" Value="~"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Op, Mode=OneWay}"
+                                                       Margin="6,0,10,0"
+                                                       FontSize="10"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource ControlSubtleForeground}"/>
+                                            <TextBlock VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource ControlDefaultForeground}"
+                                                       FontWeight="SemiBold">
+                                                <Run Text="{Binding After.Title, Mode=OneWay, TargetNullValue=''}"/>
+                                                <Run Text="{Binding Before.Title, Mode=OneWay, TargetNullValue=''}"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding TaskId, Mode=OneWay, StringFormat=' ({0})'}"
+                                                       FontSize="10"
+                                                       Margin="4,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource ControlSubtleForeground}"/>
+                                        </StackPanel>
+
+                                        <!-- Update 時: フィールド差分の一覧 -->
+                                        <ItemsControl ItemsSource="{Binding FieldDiffs}"
+                                                      Margin="22,6,0,0">
+                                            <ItemsControl.Style>
+                                                <Style TargetType="ItemsControl">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding FieldDiffs.Count}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ItemsControl.Style>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type models:FieldDiff}">
+                                                    <TextBlock FontSize="11"
+                                                               Margin="0,1"
+                                                               Foreground="{DynamicResource ControlDefaultForeground}">
+                                                        <Run Text="{Binding FieldName, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                        <Run Text=": "/>
+                                                        <Run Text="{Binding Before, Mode=OneWay, TargetNullValue='(未設定)'}"
+                                                             Foreground="#FFE59E9E"/>
+                                                        <Run Text="  →  "/>
+                                                        <Run Text="{Binding After, Mode=OneWay, TargetNullValue='(未設定)'}"
+                                                             Foreground="#FF9EE59E"/>
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
 
     <!-- ==================== 起動ランディング (splash 相当) ==================== -->
     <!-- MainViewModel.IsLoading が true のあいだ TreeView 側を覆う overlay。

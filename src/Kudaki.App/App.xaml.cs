@@ -69,10 +69,12 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         // MCP サーバーを終了。ここで await できないので同期待ちに落とす。
-        // shutdown 経路で例外が飛んでも Kudaki 本体は既に落ちる方向なので握り潰す。
+        // McpHostService 側で 2s の強制打ち切り timeout を持たせているが、念のため
+        // OnExit 側でも 3s の Wait timeout を掛けてプロセスが hang しないようにする。
         try
         {
-            _mcpHost?.StopAsync().GetAwaiter().GetResult();
+            var stop = _mcpHost?.StopAsync();
+            stop?.Wait(System.TimeSpan.FromSeconds(3));
         }
         catch (System.Exception ex)
         {

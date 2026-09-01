@@ -65,7 +65,17 @@ public sealed class McpHostService
 
         try
         {
-            await app.StopAsync(ct).ConfigureAwait(false);
+            // Kestrel の default graceful は 30 秒待つ。Kudaki の shutdown で
+            // UI スレッドを 30 秒ブロックする(= プロセスが残る)のは筋悪なので、
+            // 内部 lifetime を即キャンセルしてから最大 2 秒で強制終了する。
+            cts?.Cancel();
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            try
+            {
+                await app.StopAsync(linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { /* 想定内 (2s タイムアウト) */ }
             await app.DisposeAsync().ConfigureAwait(false);
         }
         finally
