@@ -1,0 +1,46 @@
+version: 3
+title: 依存関係デモ
+createdAt: 2026-09-01T00:00:00Z
+modifiedAt: 2026-09-01T00:00:00Z
+tasks:
+- id: sec-design
+  title: 設計フェーズ
+  children:
+  - id: t-req
+    title: 要件定義
+    estimateHours: 8
+  - id: t-arch
+    title: アーキ設計
+    estimateHours: 12
+    predecessorIds:
+    - t-req
+  - id: t-api
+    title: API 仕様書
+    estimateHours: 6
+    predecessorIds:
+    - t-arch
+  - id: t-db
+    title: DB 設計
+    estimateHours: 5
+    predecessorIds:
+    - t-arch
+- id: sec-impl
+  title: 実装フェーズ
+  children:
+  - id: t-backend
+    title: バックエンド実装
+    estimateHours: 30
+    predecessorIds:
+    - t-api
+    - t-db
+  - id: t-frontend
+    title: フロントエンド実装
+    estimateHours: 24
+    predecessorIds:
+    - t-api
+  - id: t-test
+    title: 結合テスト
+    estimateHours: 10
+    predecessorIds:
+    - t-backend
+    - t-frontend

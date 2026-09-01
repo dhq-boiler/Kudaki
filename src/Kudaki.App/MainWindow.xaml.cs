@@ -20,9 +20,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new MainViewModel(
+        var vm = new MainViewModel(
             new WpfFileDialogService(this),
             new WpfUpdatePromptService(this));
+        vm.SetArrowDiagramService(new WpfArrowDiagramService(this));
+        DataContext = vm;
 
         CommandBindings.Add(new CommandBinding(
             SystemCommands.MinimizeWindowCommand, (_, _) => SystemCommands.MinimizeWindow(this)));
@@ -41,5 +43,17 @@ public partial class MainWindow : Window
     private void Tree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
         Vm.SelectedTask.Value = e.NewValue as TaskNodeViewModel;
+    }
+
+    // 先行タスク ComboBox で候補を選んだ瞬間に AddPredecessor コマンドを叩き、
+    // ComboBox 自身は空に戻す (連続追加できるように)。SelectionChanged は
+    // VM に流すのが本筋だが、Behaviors 依存を避けるための最小 code-behind。
+    private void PredecessorCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.ComboBox cb && cb.SelectedItem is TaskNodeViewModel candidate)
+        {
+            Vm.AddPredecessorToSelectedCommand.Execute(candidate);
+            cb.SelectedItem = null;
+        }
     }
 }

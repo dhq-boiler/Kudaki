@@ -27,11 +27,27 @@ public sealed partial class MainViewModel : ObservableObject
     public BindableReactiveProperty<string?> StatusMessage { get; } = new(null);
     public BindableReactiveProperty<UpdateInfo?> AvailableUpdate { get; } = new(null);
 
+    // 先行タスク追加候補 (SelectedTask 変更・依存編集後に再計算)
+    public BindableReactiveProperty<System.Collections.Generic.IReadOnlyList<TaskNodeViewModel>>
+        SelectablePredecessors { get; } = new(System.Array.Empty<TaskNodeViewModel>());
+
     public MainViewModel(IFileDialogService dialogs, IUpdatePromptService updatePrompt)
     {
         _dialogs = dialogs;
         _updatePrompt = updatePrompt;
         LoadDocument(new WbsDocument());
+        // SelectedTask が切り替わったら候補一覧を再計算
+        SelectedTask.Subscribe(_ => RecomputeSelectablePredecessors());
+    }
+
+    private void RecomputeSelectablePredecessors()
+    {
+        var t = SelectedTask.Value;
+        SelectablePredecessors.Value = t is null
+            ? System.Array.Empty<TaskNodeViewModel>()
+            : DependencyValidator.EnumerateTasks(_rootVm)
+                .Where(vm => DependencyValidator.CanAddPredecessor(t, vm).IsValid)
+                .ToList();
     }
 
     // TreeView.ItemsSource がこれをバインドする。仮想ルート方式で top-level も VM 化。
@@ -46,9 +62,38 @@ public sealed partial class MainViewModel : ObservableObject
         _document = document;
         var stubModel = new TaskNode { Id = "__root__", Children = document.Tasks };
         _rootVm = new TaskNodeViewModel(stubModel, parent: null);
+
+        // ロード後の第 2 パス: PredecessorIds を VM 参照に解決して Predecessors コレクションに投入。
+        // (第 1 パスの木構築時点では兄弟や他サブツリーの VM がまだ生成されていない)
+        ResolvePredecessorReferences(_rootVm);
+
         OnPropertyChanged(nameof(RootTasks));
         SelectedTask.Value = null;
         IsDirty.Value = false;
+    }
+
+    private static void ResolvePredecessorReferences(TaskNodeViewModel root)
+    {
+        // id → VM の flat map
+        var idMap = new System.Collections.Generic.Dictionary<string, TaskNodeViewModel>();
+        foreach (var vm in DependencyValidator.EnumerateTasks(root))
+        {
+            idMap[vm.Id] = vm;
+        }
+        // 各 VM の Model.PredecessorIds を Predecessors コレクションへ流し込む。
+        // Predecessors.Add は OnPredecessorsCollectionChanged 経由で
+        // _model.PredecessorIds を Clear+再構築するので、iterate 対象が変異する。
+        // → コピーを取ってから舐める。
+        foreach (var vm in DependencyValidator.EnumerateTasks(root))
+        {
+            foreach (var id in vm.Model.PredecessorIds.ToList())
+            {
+                if (idMap.TryGetValue(id, out var pred))
+                {
+                    vm.Predecessors.Add(pred);
+                }
+            }
+        }
     }
 
     internal void SetCurrentFilePath(string? path)
@@ -243,4 +288,64 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void MoveSelectedDown() => SelectedTask.Value?.MoveDownCommand.Execute(null);
+
+    // ----- 依存関係編集 -----
+
+    // SelectedTask に predecessor 追加。妥当性チェックを通ったものだけ追加。
+    // 弾かれた理由は StatusMessage に流す。
+    [RelayCommand]
+    private void AddPredecessorToSelected(TaskNodeViewModel? candidate)
+    {
+        var target = SelectedTask.Value;
+        if (target is null || candidate is null) return;
+        var result = DependencyValidator.CanAddPredecessor(target, candidate);
+        if (!result.IsValid)
+        {
+            StatusMessage.Value = result.ErrorMessage;
+            return;
+        }
+        target.Predecessors.Add(candidate);
+        StatusMessage.Value = $"先行タスクを追加: {candidate.Title}";
+        RecomputeSelectablePredecessors();
+    }
+
+    [RelayCommand]
+    private void RemovePredecessorFromSelected(TaskNodeViewModel? predecessor)
+    {
+        var target = SelectedTask.Value;
+        if (target is null || predecessor is null) return;
+        if (target.Predecessors.Remove(predecessor))
+        {
+            StatusMessage.Value = $"先行タスクを解除: {predecessor.Title}";
+            RecomputeSelectablePredecessors();
+        }
+    }
+
+    // 現在の SelectedTask に対して predecessor 候補になれるタスク一覧を返す。
+    // 呼び出し側 (プロパティパネルの追加 ComboBox) が使用。
+    public System.Collections.Generic.IEnumerable<TaskNodeViewModel> GetSelectablePredecessorsForSelected()
+    {
+        var target = SelectedTask.Value;
+        if (target is null) yield break;
+        foreach (var vm in DependencyValidator.EnumerateTasks(_rootVm))
+        {
+            if (DependencyValidator.CanAddPredecessor(target, vm).IsValid)
+            {
+                yield return vm;
+            }
+        }
+    }
+
+    // アローダイアグラム表示。親タスク context menu から呼ばれる。
+    // Views/ArrowDiagramWindow を開く実装は次コミット。
+    [RelayCommand]
+    private void ShowArrowDiagram(TaskNodeViewModel? parent)
+    {
+        parent ??= SelectedTask.Value;
+        if (parent is null || parent.IsLeaf) return;
+        _arrowDiagramService?.Show(parent);
+    }
+
+    private IArrowDiagramService? _arrowDiagramService;
+    internal void SetArrowDiagramService(IArrowDiagramService s) => _arrowDiagramService = s;
 }

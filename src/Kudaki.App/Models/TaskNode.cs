@@ -27,6 +27,10 @@ public sealed class TaskNode
 
     public string? Notes { get; set; }
 
+    // 先行タスクの Id リスト。**同じ親の兄弟の Id しか入れられない** (level-local 制約)。
+    // 空リストなら依存なし。VM 側で循環と兄弟外を弾く。
+    public List<string> PredecessorIds { get; set; } = new();
+
     public List<TaskNode> Children { get; set; } = new();
 
     [YamlIgnore]

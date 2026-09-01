@@ -53,6 +53,12 @@
     <SolidColorBrush x:Key="DangerBorderBrush" Color="#FFB03A3A"/>
     <SolidColorBrush x:Key="DangerForeground" Color="#FFFFECEC"/>
 
+    <!--  Chip (先行タスク等のインラインピル表示)  -->
+    <SolidColorBrush x:Key="ChipBackground" Color="#FF313A46"/>
+    <SolidColorBrush x:Key="ChipBorderBrush" Color="#FF3F4A57"/>
+    <SolidColorBrush x:Key="ChipForeground" Color="#FFD8E1EB"/>
+    <SolidColorBrush x:Key="ChipRemoveForeground" Color="#FF9098A5"/>
+
     <!--  Hover / selection overlay  -->
     <SolidColorBrush x:Key="HoverOverlayBrush" Color="#22FFFFFF"/>
     <SolidColorBrush x:Key="SelectedOverlayBrush" Color="#332084E8"/>

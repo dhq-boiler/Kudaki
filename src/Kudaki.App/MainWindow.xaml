@@ -343,8 +343,29 @@
                                                    ItemsSource="{Binding Children}">
                             <!-- Grid で 6 列。* の Title が伸縮を吸収して、
                                  右側の 階層L / 進捗% / バー / 時間 / 警告 は
-                                 階層深さに関係なくツリー右端に揃う。 -->
-                            <Grid HorizontalAlignment="Stretch">
+                                 階層深さに関係なくツリー右端に揃う。
+                                 Tag は MainViewModel を掴んで ContextMenu 内から届くように。 -->
+                            <Grid HorizontalAlignment="Stretch"
+                                  Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <!-- 葉タスクだと意味がないので Disabled。判定は Binding + PlacementTarget 経由。 -->
+                                        <MenuItem Header="アローダイアグラムを表示"
+                                                  Command="{Binding PlacementTarget.Tag.ShowArrowDiagramCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                            <MenuItem.Style>
+                                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PlacementTarget.DataContext.IsLeaf, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="True">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </MenuItem.Style>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="80"/>
                                     <ColumnDefinition Width="28"/>
@@ -506,6 +527,59 @@
                                  TextWrapping="Wrap"
                                  Height="140"
                                  VerticalScrollBarVisibility="Auto"/>
+
+                        <!-- 先行タスク (依存, FS 固定) -->
+                        <TextBlock Style="{StaticResource FieldLabel}">
+                            <Run Text="先行タスク"/>
+                            <Run Text=" — このタスクが着手できるまでに完了している必要があるもの"
+                                 Foreground="{DynamicResource ControlSubtleForeground}" FontSize="10"/>
+                        </TextBlock>
+
+                        <!-- 現在の先行タスクをチップで表示、× で解除 -->
+                        <ItemsControl ItemsSource="{Binding Predecessors}" Margin="0,0,0,4">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:TaskNodeViewModel}">
+                                    <Border Background="{DynamicResource ChipBackground}"
+                                            BorderBrush="{DynamicResource ChipBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="3"
+                                            Padding="6,2"
+                                            Margin="0,0,4,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="{DynamicResource ChipForeground}"
+                                                       VerticalAlignment="Center"
+                                                       MaxWidth="180"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <Button Content="✕"
+                                                    Command="{Binding DataContext.RemovePredecessorFromSelectedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Margin="6,0,0,0"
+                                                    Padding="0"
+                                                    Width="14" Height="14"
+                                                    FontSize="10"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Foreground="{DynamicResource ChipRemoveForeground}"
+                                                    ToolTip="この先行タスクを外す"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 追加: SelectablePredecessors から選ぶ ComboBox。選ぶと即追加してリセット -->
+                        <ComboBox x:Name="PredecessorCombo"
+                                  ItemsSource="{Binding DataContext.SelectablePredecessors.Value, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  DisplayMemberPath="Title"
+                                  SelectionChanged="PredecessorCombo_SelectionChanged"
+                                  Margin="0,0,0,8"
+                                  ToolTip="ここから選ぶと先行タスクとして追加します"/>
 
                         <!-- 集計セクション -->
                         <Border BorderBrush="{DynamicResource SubtleDividerBrush}"

@@ -211,7 +211,9 @@
     </Style>
 
     <!--  =========================================================
-          DatePicker (最小限のダーク対応)
+          DatePicker
+          - 表示部の DatePickerTextBox が WPF デフォルトのまま白背景で
+            浮いていたので、内部 TextBox も retemplate する。
           - Popup のカレンダー自体は WPF デフォルトのまま (ライト寄り)。
             v0.2 以降で気になったら再対応。
           ========================================================= -->
@@ -220,6 +222,288 @@
         <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+    </Style>
+
+    <!-- DatePicker の中の入力欄。デフォルトだと Aero2 の白のまま。 -->
+    <Style TargetType="DatePickerTextBox">
+        <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource ControlSelectedBackground}"/>
+        <Setter Property="SelectionOpacity" Value="0.6"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DatePickerTextBox">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="3"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          HorizontalScrollBarVisibility="Hidden"/>
+                            <!-- ウォーターマーク "選択してください" が出るスロット -->
+                            <ContentControl x:Name="PART_Watermark"
+                                            Focusable="False"
+                                            Foreground="{DynamicResource ControlSubtleForeground}"
+                                            IsHitTestVisible="False"
+                                            Margin="{TemplateBinding Padding}"
+                                            VerticalAlignment="Center"
+                                            Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  =========================================================
+          ComboBox
+          - 標準テンプレは Aero2 のまま白基調で完全にライトテーマ。
+            ドロップダウンも白背景で浮くので、Grid + ToggleButton + Popup
+            の最小構造で dark に retemplate する。
+          ========================================================= -->
+
+    <!-- ドロップダウン矢印用の ToggleButton (内部使用) -->
+    <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">
+        <Border x:Name="root" Background="Transparent" SnapsToDevicePixels="True">
+            <Path x:Name="arrow"
+                  Data="M0,0 L4,4 L8,0 Z"
+                  Fill="{DynamicResource ControlSecondaryForeground}"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  SnapsToDevicePixels="True"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="arrow" Property="Fill" Value="{DynamicResource ControlDefaultForeground}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="arrow" Property="Fill" Value="{DynamicResource ControlDefaultForeground}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style TargetType="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="22"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="Bd"
+                                Grid.ColumnSpan="2"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                SnapsToDevicePixels="True"/>
+                        <ContentPresenter Grid.Column="0"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                          IsHitTestVisible="False"
+                                          SnapsToDevicePixels="True"/>
+                        <ToggleButton Grid.Column="1"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                      ClickMode="Press"
+                                      Template="{StaticResource ComboBoxToggleButtonTemplate}"/>
+                        <Popup x:Name="PART_Popup"
+                               IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                               Placement="Bottom"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Fade">
+                            <themes:SystemDropShadowChrome Margin="0,0,5,5" Color="#71000000" CornerRadius="0">
+                                <Border x:Name="DropDownBorder"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        Background="{DynamicResource ControlDefaultBackground}"
+                                        BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
+                                        BorderThickness="1"
+                                        SnapsToDevicePixels="True">
+                                    <ScrollViewer>
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </themes:SystemDropShadowChrome>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource ControlMouseOverBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryDefaultBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          SnapsToDevicePixels="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlSelectedBackground}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlSelectedBackground}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  =========================================================
+          ScrollBar (最小限のダーク対応)
+          - ドロップダウン内 ScrollViewer や詳細ペインの ScrollViewer で
+            出てくる縦スクロールバーが Aero2 の白いままだったので、
+            RepeatButton (矢印) を抑制し、Thumb だけ細く描く最小版に。
+          ========================================================= -->
+
+    <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
+        <Setter Property="Background" Value="{DynamicResource ScrollBarThumbBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="3"
+                            Margin="2"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ScrollBarThumbHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ScrollBarThumbDraggingBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 矢印 RepeatButton は使わず、Track 全域を Thumb だけで描く簡易版 -->
+    <Style x:Key="ScrollBarPageButtonStyle" TargetType="RepeatButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Rectangle Fill="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Vertical">
+                <Setter Property="Width" Value="10"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Border Background="{TemplateBinding Background}">
+                                <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
+                                                      Command="ScrollBar.PageUpCommand"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ScrollBarThumbStyle}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
+                                                      Command="ScrollBar.PageDownCommand"/>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Height" Value="10"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Border Background="{TemplateBinding Background}">
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
+                                                      Command="ScrollBar.PageLeftCommand"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ScrollBarThumbStyle}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
+                                                      Command="ScrollBar.PageRightCommand"/>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!--  =========================================================

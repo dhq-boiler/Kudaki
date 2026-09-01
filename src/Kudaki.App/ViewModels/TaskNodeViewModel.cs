@@ -5,6 +5,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kudaki.App.Models;
+using Kudaki.App.Services;
 using R3;
 
 namespace Kudaki.App.ViewModels;
@@ -28,6 +29,8 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         Children = new ObservableCollection<TaskNodeViewModel>(
             model.Children.Select(c => new TaskNodeViewModel(c, this)));
         Children.CollectionChanged += OnChildrenCollectionChanged;
+        Predecessors = new ObservableCollection<TaskNodeViewModel>();
+        Predecessors.CollectionChanged += OnPredecessorsCollectionChanged;
     }
 
     // 保存時に MainViewModel から呼ぶ。VM の変更は常に Model に反映されているので
@@ -117,6 +120,14 @@ public sealed partial class TaskNodeViewModel : ObservableObject
 
     public ObservableCollection<TaskNodeViewModel> Children { get; }
 
+    // 先行タスク (Finish-to-Start)。任意タスク間 (level-local 制約なし)、
+    // ただし self / 祖先-子孫 / 循環は DependencyValidator で弾く。
+    // ID の永続化は _model.PredecessorIds に対する片方向同期で維持 (OnPredecessorsCollectionChanged)。
+    public ObservableCollection<TaskNodeViewModel> Predecessors { get; }
+
+    // Predecessor カウント表示用 (Tree row バッジで使う想定)。
+    public int PredecessorCount => Predecessors.Count;
+
     public bool IsLeaf => Children.Count == 0;
 
     public double RolledUpEstimateHours => _model.GetRolledUpEstimateHours();
@@ -144,6 +155,31 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         OnPropertyChanged(nameof(IsLeaf));
         NotifyRollupChanged();
     }
+
+    // ObservableCollection<TaskNodeViewModel> Predecessors → List<string> _model.PredecessorIds
+    // への片方向同期。ロード時の初期投入もこれで反映される。
+    private void OnPredecessorsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        _model.PredecessorIds.Clear();
+        foreach (var p in Predecessors) _model.PredecessorIds.Add(p.Id);
+        OnPropertyChanged(nameof(PredecessorCount));
+    }
+
+    // 仮想ルートまで登る。selfが仮想ルートなら self を返す (Parent==null で停止)。
+    public TaskNodeViewModel RootVm
+    {
+        get
+        {
+            var current = this;
+            while (current.Parent != null) current = current.Parent;
+            return current;
+        }
+    }
+
+    // Indent/Outdent/Move で祖先-子孫関係になった依存を消し込む。
+    // 除去された数を返す (MainViewModel が StatusMessage に流す)。
+    internal int SanitizeDependenciesAfterMove()
+        => DependencyValidator.SanitizeAncestryDependencies(RootVm);
 
     // 自分と全子孫の Depth を再通知 (Indent/Outdent 後の親付け替えで使う)。
     private void NotifyDepthChanged()
@@ -207,6 +243,7 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         newParent.Children.Add(this);
         newParent.IsExpanded.Value = true;
         IsSelected.Value = true;
+        SanitizeDependenciesAfterMove();
     }
 
     // 親の兄弟にする (親の直後に挿入)。親がルートなら何もしない。
@@ -221,6 +258,7 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         oldParent.Children.Remove(this);
         newParent.Children.Insert(parentIndex + 1, this);
         IsSelected.Value = true;
+        SanitizeDependenciesAfterMove();
     }
 
     [RelayCommand]
