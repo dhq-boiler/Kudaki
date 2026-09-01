@@ -24,7 +24,6 @@
         ResizeMode="CanResize"
         BorderBrush="{DynamicResource WindowBorderColour}"
         BorderThickness="1"
-        FocusManager.FocusedElement="{Binding ElementName=Tree}"
         behaviors:FileDropBehavior.Command="{Binding LoadFromPathCommand}"
         behaviors:FileDropBehavior.Extensions=".wbs.yaml,.yaml,.yml">
 
@@ -320,11 +319,25 @@
             </DockPanel>
         </Border>
 
-        <!-- ==================== 本体: TreeView + 詳細パネル ==================== -->
-        <!-- v0.3 で ActiveDocument.Value (DocumentViewModel) を DataContext にする。
-             内部 bind (RootTasks / SelectedTask.Value 等) は DocumentViewModel から
-             直接解決される。次 commit でこの Grid を TabControl.ContentTemplate 内へ移す。 -->
-        <Grid DataContext="{Binding ActiveDocument.Value}">
+        <!-- ==================== ドキュメントタブ (t-tab-control) ==================== -->
+        <!-- ItemsSource = MainViewModel.Documents (Documents は複数の DocumentViewModel を持つ) -->
+        <!-- SelectedItem <-> ActiveDocument.Value の双方向バインドでタブ切替と同期。 -->
+        <!-- ContentTemplate 内は DataContext = DocumentViewModel。 -->
+        <!-- DiffOverlay は当面 MainWindow レベルに残す (ActiveDocument.Value を bind) -->
+        <!-- t-doc-diffoverlay-routing で non-active タブの proposal は「タブ切替バッジ」で誘導する予定。 -->
+        <TabControl ItemsSource="{Binding Documents}"
+                    SelectedItem="{Binding ActiveDocument.Value, Mode=TwoWay}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="0">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                    <Setter Property="Header" Value="{Binding WindowTitle.Value}"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+            <TabControl.ContentTemplate>
+                <DataTemplate DataType="{x:Type vm:DocumentViewModel}">
+        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MinWidth="400"/>
                 <ColumnDefinition Width="Auto"/>
@@ -677,6 +690,9 @@
             </Grid>
 
         </Grid>
+                </DataTemplate>
+            </TabControl.ContentTemplate>
+        </TabControl>
     </DockPanel>
 
     <!-- ==================== Diff Overlay (MCP propose_changes レビュー) ==================== -->
