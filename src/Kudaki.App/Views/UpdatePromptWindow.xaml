@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Kudaki.App.ViewModels"
         xmlns:conv="clr-namespace:Kudaki.App.Converters"
+        xmlns:loc="clr-namespace:Kudaki.App.Properties"
         mc:Ignorable="d"
         Title="{Binding Title.Value}"
         Height="260" Width="460"
@@ -95,12 +96,12 @@
                                Foreground="{DynamicResource ControlSubtleForeground}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="ブラウザで開く"
+                    <Button Content="{x:Static loc:Strings.Update_OpenInBrowser}"
                             Margin="0,0,8,0"
                             Style="{StaticResource SecondaryButton}"
                             Command="{Binding OpenInBrowserCommand}"
                             IsEnabled="{Binding IsDownloading.Value, Converter={StaticResource NullToVis}, ConverterParameter=inverse}"/>
-                    <Button Content="今すぐ更新"
+                    <Button Content="{x:Static loc:Strings.Update_InstallNow}"
                             Style="{StaticResource PrimaryButton}"
                             Command="{Binding InstallCommand}"
                             IsEnabled="{Binding CanAutoUpdate}"/>

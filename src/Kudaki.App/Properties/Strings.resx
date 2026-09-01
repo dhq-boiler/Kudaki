@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Common -->
+  <data name="Common_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Common_Untitled" xml:space="preserve"><value>Untitled</value></data>
+  <data name="Common_Value_Unset" xml:space="preserve"><value>(unset)</value></data>
+
+  <!-- Main window / title -->
+  <data name="Main_Title_Untitled" xml:space="preserve"><value>Kudaki - Untitled</value></data>
+  <data name="Main_Title_Format" xml:space="preserve"><value>Kudaki - {0}</value></data>
+
+  <!-- File menu -->
+  <data name="Menu_File" xml:space="preserve"><value>_File</value></data>
+  <data name="Menu_File_New" xml:space="preserve"><value>_New</value></data>
+  <data name="Menu_File_Open" xml:space="preserve"><value>_Open…</value></data>
+  <data name="Menu_File_Save" xml:space="preserve"><value>_Save</value></data>
+  <data name="Menu_File_SaveAs" xml:space="preserve"><value>Save _As…</value></data>
+  <data name="Menu_File_ExportMarkdown" xml:space="preserve"><value>_Export Markdown…</value></data>
+  <data name="Menu_File_Exit" xml:space="preserve"><value>E_xit</value></data>
+
+  <!-- Edit menu -->
+  <data name="Menu_Edit" xml:space="preserve"><value>_Edit</value></data>
+  <data name="Menu_Edit_AddSibling" xml:space="preserve"><value>Add Sibling</value></data>
+  <data name="Menu_Edit_AddChild" xml:space="preserve"><value>Add Child</value></data>
+  <data name="Menu_Edit_Indent" xml:space="preserve"><value>Indent</value></data>
+  <data name="Menu_Edit_Outdent" xml:space="preserve"><value>Outdent</value></data>
+  <data name="Menu_Edit_MoveUp" xml:space="preserve"><value>Move Up</value></data>
+  <data name="Menu_Edit_MoveDown" xml:space="preserve"><value>Move Down</value></data>
+  <data name="Menu_Edit_Delete" xml:space="preserve"><value>Delete</value></data>
+
+  <!-- Tools menu -->
+  <data name="Menu_Tools" xml:space="preserve"><value>_Tools</value></data>
+  <data name="Menu_Tools_Preferences" xml:space="preserve"><value>_Preferences…</value></data>
+
+  <!-- Help menu -->
+  <data name="Menu_Help" xml:space="preserve"><value>_Help</value></data>
+  <data name="Menu_Help_OpenRepository" xml:space="preserve"><value>Open GitHub Repository</value></data>
+
+  <!-- Titlebar / caption -->
+  <data name="Caption_Minimize" xml:space="preserve"><value>Minimize</value></data>
+  <data name="Caption_Maximize" xml:space="preserve"><value>Maximize</value></data>
+  <data name="Caption_Restore" xml:space="preserve"><value>Restore</value></data>
+  <data name="Caption_Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Titlebar_UpdateAvailable_Prefix" xml:space="preserve"><value>Update available: </value></data>
+
+  <!-- Status bar hint -->
+  <data name="StatusBar_ShortcutHint" xml:space="preserve"><value>Enter=Add sibling  Alt+Enter=Add child  Tab=Indent  Shift+Tab=Outdent  Ctrl+↑↓=Reorder  Delete=Delete</value></data>
+
+  <!-- Tree -->
+  <data name="Tree_ContextMenu_ShowArrowDiagram" xml:space="preserve"><value>Show Arrow Diagram</value></data>
+  <data name="Tree_Tooltip_HierarchyLevel" xml:space="preserve"><value>Hierarchy level</value></data>
+  <data name="Tree_Tooltip_NeedsBreakdown" xml:space="preserve"><value>Estimate exceeds 40h. Consider breaking it down further?</value></data>
+  <data name="Tree_Empty_Hint_Line1" xml:space="preserve"><value>Press Enter to add the first task</value></data>
+  <data name="Tree_Empty_Hint_Line2" xml:space="preserve"><value>(while the tree has focus)</value></data>
+
+  <!-- Detail panel -->
+  <data name="Detail_Header" xml:space="preserve"><value>Details</value></data>
+  <data name="Detail_Title" xml:space="preserve"><value>Title</value></data>
+  <data name="Detail_Estimate" xml:space="preserve"><value>Estimate (h)</value></data>
+  <data name="Detail_Remaining" xml:space="preserve"><value>Remaining (h)</value></data>
+  <data name="Detail_Remaining_Suffix" xml:space="preserve"><value> — updated daily</value></data>
+  <data name="Detail_Assignee" xml:space="preserve"><value>Assignee</value></data>
+  <data name="Detail_DueDate" xml:space="preserve"><value>Due date</value></data>
+  <data name="Detail_Notes" xml:space="preserve"><value>Notes</value></data>
+  <data name="Detail_Predecessors" xml:space="preserve"><value>Predecessors</value></data>
+  <data name="Detail_Predecessors_Suffix" xml:space="preserve"><value> — must be completed before this task can start</value></data>
+  <data name="Detail_Predecessor_RemoveTooltip" xml:space="preserve"><value>Remove this predecessor</value></data>
+  <data name="Detail_Predecessor_AddTooltip" xml:space="preserve"><value>Choose here to add as a predecessor</value></data>
+  <data name="Detail_Summary_Header" xml:space="preserve"><value>Roll-up (from leaves)</value></data>
+  <data name="Detail_Summary_EstimateTotal" xml:space="preserve"><value>Estimate total: </value></data>
+  <data name="Detail_Summary_RemainingTotal" xml:space="preserve"><value>Remaining total: </value></data>
+  <data name="Detail_Summary_ActualTotal" xml:space="preserve"><value>Consumed: </value></data>
+  <data name="Detail_Summary_Progress" xml:space="preserve"><value>Progress: </value></data>
+  <data name="Detail_Warning_Line1" xml:space="preserve"><value>This leaf task exceeds a 40h estimate.</value></data>
+  <data name="Detail_Warning_Line2" xml:space="preserve"><value>Consider breaking it down further?</value></data>
+
+  <!-- Diff overlay (MCP propose_changes) -->
+  <data name="Diff_Header" xml:space="preserve"><value>Change proposal from AI</value></data>
+  <data name="Diff_SourceLabel" xml:space="preserve"><value>From: </value></data>
+  <data name="Diff_Source_Unknown" xml:space="preserve"><value>(unknown)</value></data>
+  <data name="Diff_Changes_CountFormat" xml:space="preserve"><value>{0} change(s)</value></data>
+  <data name="Diff_Reject" xml:space="preserve"><value>Reject (all)</value></data>
+  <data name="Diff_Approve" xml:space="preserve"><value>Approve (apply all)</value></data>
+  <data name="Diff_DocumentLevelPseudoTitle" xml:space="preserve"><value>(document)</value></data>
+
+  <!-- Landing overlay -->
+  <data name="Landing_Product" xml:space="preserve"><value>KUDAKI</value></data>
+  <data name="Landing_Tagline" xml:space="preserve"><value>WORK BREAKDOWN STRUCTURE EDITOR</value></data>
+  <data name="Landing_Status_Startup" xml:space="preserve"><value>Starting Kudaki</value></data>
+  <data name="Landing_Status_Initializing" xml:space="preserve"><value>Initializing</value></data>
+  <data name="Landing_Status_McpStarted" xml:space="preserve"><value>MCP server started</value></data>
+  <data name="Landing_Status_McpFailed" xml:space="preserve"><value>MCP server failed to start (see log)</value></data>
+  <data name="Landing_Status_Ready" xml:space="preserve"><value>Ready</value></data>
+
+  <!-- File load / save status -->
+  <data name="Status_Loading_Format" xml:space="preserve"><value>Loading file: {0}</value></data>
+  <data name="Status_Building" xml:space="preserve"><value>Building document</value></data>
+  <data name="Status_Complete" xml:space="preserve"><value>Complete</value></data>
+  <data name="Status_Loaded_Format" xml:space="preserve"><value>Loaded: {0}</value></data>
+  <data name="Status_LoadFailed_Format" xml:space="preserve"><value>Load failed: {0}</value></data>
+  <data name="Status_Saved_Format" xml:space="preserve"><value>Saved: {0}</value></data>
+  <data name="Status_SaveFailed_Format" xml:space="preserve"><value>Save failed: {0}</value></data>
+  <data name="Status_MarkdownExported_Format" xml:space="preserve"><value>Exported Markdown: {0}</value></data>
+  <data name="Status_MarkdownExportFailed_Format" xml:space="preserve"><value>Markdown export failed: {0}</value></data>
+  <data name="Status_AiProposalApplied" xml:space="preserve"><value>AI proposal applied (unsaved)</value></data>
+  <data name="Status_PredecessorAdded_Format" xml:space="preserve"><value>Added predecessor: {0}</value></data>
+  <data name="Status_PredecessorRemoved_Format" xml:space="preserve"><value>Removed predecessor: {0}</value></data>
+
+  <!-- File dialogs -->
+  <data name="Dialog_Open_Title" xml:space="preserve"><value>Open WBS file</value></data>
+  <data name="Dialog_SaveAs_Title" xml:space="preserve"><value>Save As</value></data>
+  <data name="Dialog_MarkdownExport_Title" xml:space="preserve"><value>Export Markdown</value></data>
+  <data name="Dialog_Markdown_Filter" xml:space="preserve"><value>Markdown files (*.md)|*.md|All files (*.*)|*.*</value></data>
+
+  <!-- Arrow diagram -->
+  <data name="Arrow_Title_Format" xml:space="preserve"><value>Arrow Diagram — {0}</value></data>
+  <data name="Arrow_Legend_Line1" xml:space="preserve"><value>AON notation (box = task, arrow = predecessor → successor, FS).</value></data>
+  <data name="Arrow_Legend_Line2" xml:space="preserve"><value> icon marks a task that has a predecessor outside this hierarchy (an external inbound dependency from beyond parent P).</value></data>
+  <data name="Arrow_Node_Tooltip_ExternalInbound" xml:space="preserve"><value>Has a predecessor outside this hierarchy</value></data>
+  <data name="Arrow_Node_Estimate_Prefix" xml:space="preserve"><value>Est. </value></data>
+  <data name="Arrow_Node_Remaining_Prefix" xml:space="preserve"><value>h / Rem. </value></data>
+  <data name="Arrow_Node_Hours_Suffix" xml:space="preserve"><value>h</value></data>
+
+  <!-- Update prompt -->
+  <data name="Update_OpenInBrowser" xml:space="preserve"><value>Open in Browser</value></data>
+  <data name="Update_InstallNow" xml:space="preserve"><value>Update Now</value></data>
+  <data name="Update_Title_Format" xml:space="preserve"><value>Kudaki {0} is available</value></data>
+  <data name="Update_Message_AutoUpdate_Format" xml:space="preserve"><value>Version {0} will be downloaded and installed. Kudaki will restart automatically during the install.</value></data>
+  <data name="Update_Message_Manual_Format" xml:space="preserve"><value>Version {0} has been released. Open the Releases page in your browser and download it manually.</value></data>
+  <data name="Update_Progress_Format" xml:space="preserve"><value>Downloading… {0:0}%</value></data>
+  <data name="Update_Error_DownloadFailed_Format" xml:space="preserve"><value>Download failed: {0}</value></data>
+
+  <!-- Dependency validation errors -->
+  <data name="Dep_Error_Self" xml:space="preserve"><value>A task cannot be its own predecessor.</value></data>
+  <data name="Dep_Error_AlreadyRegistered" xml:space="preserve"><value>This task is already registered as a predecessor.</value></data>
+  <data name="Dep_Error_AncestryRelation" xml:space="preserve"><value>Dependencies between ancestor and descendant tasks are not allowed (completion is already implied by containment).</value></data>
+  <data name="Dep_Error_Cycle" xml:space="preserve"><value>This would create a circular dependency (adding it forms a target → … → candidate → target loop).</value></data>
+
+  <!-- YAML storage errors -->
+  <data name="Storage_Error_VersionTooNew_Format" xml:space="preserve"><value>This file's format version ({0}) is newer than Kudaki supports (up to v{1}).</value></data>
+  <data name="Storage_Error_LoadFailed_Format" xml:space="preserve"><value>Failed to load file: {0}</value></data>
+  <data name="Storage_Error_EmptyYaml" xml:space="preserve"><value>The YAML content is empty.</value></data>
+  <data name="Storage_Error_YamlParse_Format" xml:space="preserve"><value>Failed to parse YAML: {0}</value></data>
+  <data name="Storage_Error_UnableToRestore" xml:space="preserve"><value>Could not restore WbsDocument from YAML.</value></data>
+  <data name="Storage_YamlSaveFilter" xml:space="preserve"><value>Kudaki WBS files (*.wbs.yaml)|*.wbs.yaml|YAML (*.yaml)|*.yaml</value></data>
+  <data name="Storage_YamlOpenFilter" xml:space="preserve"><value>Kudaki WBS files (*.wbs.yaml;*.yaml;*.yml)|*.wbs.yaml;*.yaml;*.yml|All files (*.*)|*.*</value></data>
+
+  <!-- Markdown export literals -->
+  <data name="Md_FallbackDocumentTitle" xml:space="preserve"><value>Kudaki WBS</value></data>
+  <data name="Md_UpdatedLine_Format" xml:space="preserve"><value>*Updated: {0}*</value></data>
+  <data name="Md_NoTasks" xml:space="preserve"><value>*(no tasks)*</value></data>
+  <data name="Md_UntitledTask" xml:space="preserve"><value>(untitled)</value></data>
+  <data name="Md_Warning_Suffix" xml:space="preserve"><value> *(can still be broken down)*</value></data>
+  <data name="Md_Leaf_Estimate_Format" xml:space="preserve"><value>Est. {0}h</value></data>
+  <data name="Md_Leaf_Remaining_Format" xml:space="preserve"><value>Rem. {0}h</value></data>
+  <data name="Md_Leaf_Progress_Format" xml:space="preserve"><value>Progress {0}%</value></data>
+  <data name="Md_Inner_EstimateTotal_Format" xml:space="preserve"><value>Est. total {0}h</value></data>
+  <data name="Md_Inner_RemainingTotal_Format" xml:space="preserve"><value>Rem. total {0}h</value></data>
+  <data name="Md_Inner_Progress_Format" xml:space="preserve"><value>Progress {0}%</value></data>
+  <data name="Md_Meta_Assignee_Format" xml:space="preserve"><value>Assignee {0}</value></data>
+  <data name="Md_Meta_DueDate_Format" xml:space="preserve"><value>Due {0:yyyy-MM-dd}</value></data>
+
+  <!-- Preferences dialog -->
+  <data name="Preferences_Title" xml:space="preserve"><value>Preferences</value></data>
+  <data name="Preferences_Category_General" xml:space="preserve"><value>General</value></data>
+  <data name="Preferences_Language_Label" xml:space="preserve"><value>Display language</value></data>
+  <data name="Preferences_Language_Hint" xml:space="preserve"><value>Language changes take effect for windows opened after Apply. Currently open windows keep their previous language.</value></data>
+  <data name="Preferences_Language_System" xml:space="preserve"><value>Follow OS</value></data>
+</root>

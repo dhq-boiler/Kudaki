@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Kudaki.App.ViewModels"
+        xmlns:loc="clr-namespace:Kudaki.App.Properties"
         mc:Ignorable="d"
         Title="{Binding Title.Value}"
         Icon="pack://application:,,,/Assets/kudaki.ico"
@@ -37,9 +38,9 @@
                 BorderThickness="0,1,0,0"
                 Padding="16,8">
             <TextBlock Foreground="{DynamicResource ControlSubtleForeground}" FontSize="11">
-                <Run Text="AON 記法 (箱=タスク、矢印=先行→後続、FS)。"/>
+                <Run Text="{x:Static loc:Strings.Arrow_Legend_Line1}"/>
                 <Run Text="⚡" Foreground="{DynamicResource WarningGlyphForeground}"/>
-                <Run Text="印はこの階層の外に先行タスクを持つ (親 P の外部からの依存があるタスク)。"/>
+                <Run Text="{x:Static loc:Strings.Arrow_Legend_Line2}"/>
             </TextBlock>
         </Border>
 
@@ -111,7 +112,7 @@
                                                     <TextBlock DockPanel.Dock="Right"
                                                                Text="⚡" FontSize="12"
                                                                Foreground="{DynamicResource WarningGlyphForeground}"
-                                                               ToolTip="この階層の外に先行タスクがあります"
+                                                               ToolTip="{x:Static loc:Strings.Arrow_Node_Tooltip_ExternalInbound}"
                                                                Visibility="{Binding HasExternalInbound, Converter={StaticResource BoolToVis}}"/>
                                                     <TextBlock Text="{Binding Task.Title}"
                                                                FontWeight="SemiBold"
@@ -122,11 +123,11 @@
                                                            VerticalAlignment="Bottom"
                                                            Foreground="{DynamicResource ControlSubtleForeground}"
                                                            FontSize="11">
-                                                    <Run Text="見積 "/>
+                                                    <Run Text="{x:Static loc:Strings.Arrow_Node_Estimate_Prefix}"/>
                                                     <Run Text="{Binding Task.RolledUpEstimateHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
-                                                    <Run Text="h / 残 "/>
+                                                    <Run Text="{x:Static loc:Strings.Arrow_Node_Remaining_Prefix}"/>
                                                     <Run Text="{Binding Task.RolledUpRemainingHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
-                                                    <Run Text="h"/>
+                                                    <Run Text="{x:Static loc:Strings.Arrow_Node_Hours_Suffix}"/>
                                                 </TextBlock>
                                             </Grid>
                                         </Border>

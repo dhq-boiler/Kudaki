@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Kudaki.App.Models;
+using Kudaki.App.Properties;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.Converters;
@@ -16,11 +17,10 @@ public sealed class YamlStorageService
     // 主拡張子。読込時は .yaml / .yml も受け付ける。
     public const string PrimaryExtension = ".wbs.yaml";
 
-    // 保存ダイアログ用のフィルタ文字列 (SaveFileDialog.Filter にそのまま流せる)。
-    public const string SaveFilter = "Kudaki WBS ファイル (*.wbs.yaml)|*.wbs.yaml|YAML (*.yaml)|*.yaml";
-
-    public const string OpenFilter =
-        "Kudaki WBS ファイル (*.wbs.yaml;*.yaml;*.yml)|*.wbs.yaml;*.yaml;*.yml|すべてのファイル (*.*)|*.*";
+    // 保存 / 読込ダイアログ用のフィルタ (SaveFileDialog.Filter / OpenFileDialog.Filter に流す)。
+    // resx 側で言語別に持つのでプロパティ (static getter) で解決。
+    public static string SaveFilter => Strings.Storage_YamlSaveFilter;
+    public static string OpenFilter => Strings.Storage_YamlOpenFilter;
 
     private readonly ISerializer _serializer;
     private readonly IDeserializer _deserializer;
@@ -70,7 +70,7 @@ public sealed class YamlStorageService
     {
         if (string.IsNullOrWhiteSpace(yaml))
         {
-            throw new WbsLoadException("YAML が空っすね。");
+            throw new WbsLoadException(Strings.Storage_Error_EmptyYaml);
         }
 
         WbsDocument? doc;
@@ -80,19 +80,18 @@ public sealed class YamlStorageService
         }
         catch (YamlException ex)
         {
-            throw new WbsLoadException($"YAML の解釈に失敗したっす: {ex.Message}", ex);
+            throw new WbsLoadException(string.Format(Strings.Storage_Error_YamlParse_Format, ex.Message), ex);
         }
 
         if (doc is null)
         {
-            throw new WbsLoadException("YAML から WbsDocument を復元できなかったっす。");
+            throw new WbsLoadException(Strings.Storage_Error_UnableToRestore);
         }
 
         if (doc.Version > WbsDocument.CurrentVersion)
         {
             throw new WbsLoadException(
-                $"このファイルのフォーマットバージョン ({doc.Version}) は新しすぎるっす。" +
-                $"Kudaki 側の対応は v{WbsDocument.CurrentVersion} まで。");
+                string.Format(Strings.Storage_Error_VersionTooNew_Format, doc.Version, WbsDocument.CurrentVersion));
         }
 
         // 将来 v0 → v1 みたいなマイグレーションが要ればここに書く。
@@ -109,7 +108,7 @@ public sealed class YamlStorageService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new WbsLoadException($"ファイルの読込に失敗したっす: {ex.Message}", ex);
+            throw new WbsLoadException(string.Format(Strings.Storage_Error_LoadFailed_Format, ex.Message), ex);
         }
 
         return DeserializeFromString(yaml);

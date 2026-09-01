@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using Kudaki.App.Properties;
+using Kudaki.App.Services;
 using Kudaki.App.Services.Mcp;
 using Kudaki.App.ViewModels;
 using R3;
@@ -14,8 +16,17 @@ public partial class App : Application
     // 起動は OnStartup 内で fire-and-forget、停止は OnExit で待って落とす。
     private McpHostService? _mcpHost;
 
+    // 表示言語サービス。起動時に settings.json をロードして
+    // DefaultThreadCurrentUICulture を当てるため、MainWindow ctor より前に Initialize する。
+    public ILanguageService LanguageService { get; } =
+        new LanguageService(new JsonAppSettingsStore());
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 表示言語を確定。以降に生成される WPF Window / TextBlock の
+        // resx 参照はこの culture で解決される。
+        LanguageService.Initialize();
+
         // R3 の WPF SynchronizationContext を初期化。
         // 未処理例外は Debug 出力へ (プロダクションではロガーに差し替え可)。
         WpfProviderInitializer.SetDefaultObservableSystem(
@@ -35,20 +46,20 @@ public partial class App : Application
             {
                 await _mcpHost.StartAsync().ConfigureAwait(false);
                 Debug.WriteLine($"[Kudaki.Mcp] listening on {_mcpHost.EndpointUrl}");
-                MainViewModel.Current?.ReportLoading(75, "MCP サーバー起動");
+                MainViewModel.Current?.ReportLoading(75, Strings.Landing_Status_McpStarted);
 
                 if (!hasStartupFile)
                 {
                     // Landing を一瞬見せる余韻。ロードするものが何もないので短めで閉じる。
                     await Task.Delay(200).ConfigureAwait(false);
-                    MainViewModel.Current?.ReportLoading(100, "準備完了");
+                    MainViewModel.Current?.ReportLoading(100, Strings.Landing_Status_Ready);
                 }
             }
             catch (System.Exception ex)
             {
                 Debug.WriteLine($"[Kudaki.Mcp] failed to start: {ex}");
                 // 起動失敗しても Landing は閉じないと UI が使えないので閉じる。
-                MainViewModel.Current?.ReportLoading(100, "MCP サーバー起動失敗 (ログ参照)");
+                MainViewModel.Current?.ReportLoading(100, Strings.Landing_Status_McpFailed);
             }
         });
 

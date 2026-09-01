@@ -1,0 +1,87 @@
+version: 2
+title: Kudaki v0.3 (i18n スライス) — 表示言語切替 + 環境設定ダイアログ
+createdAt: 2026-09-01T18:00:00Z
+modifiedAt: 2026-09-01T18:00:00Z
+tasks:
+- id: sec-infra
+  title: i18n 基盤
+  children:
+  - id: t-resx
+    title: Properties/Strings.resx + Strings.ja.resx (英中立 + ja サテライト)
+    estimateHours: 2
+    notes: |
+      Kudaki.App inline 配置 (Kata.Localization のような別プロジェクト化はしない)。
+      Kudaki.App.csproj で <NeutralLanguage>en</NeutralLanguage>。
+      auto-generated Strings.Designer.cs で static プロパティ経由アクセス。
+  - id: t-applang
+    title: AppLanguage enum (System / Japanese / English)
+    estimateHours: 0.5
+    notes: Models/ 配下に置く (Kata では Kata.Core.Sessions/AppLanguage.cs 相当)。
+  - id: t-settings
+    title: AppSettings + IAppSettingsStore + JsonAppSettingsStore
+    estimateHours: 1.5
+    notes: |
+      %LOCALAPPDATA%/Kudaki/settings.json 永続化。壊れてても既定値で起動する
+      Kata と同じ耐障害性 (try-catch で握りつぶし)。
+  - id: t-langsvc
+    title: LanguageService (Initialize / Apply → DefaultThreadCurrentUICulture)
+    estimateHours: 1
+    notes: |
+      WPF は文字列を生成時 1 回しか読まないので、開いている画面は反映されず
+      「次に開く画面から反映」方針 (Kata と同じ)。
+  - id: t-appstartup
+    title: App.OnStartup で LanguageService.Initialize() を Window 生成前に呼ぶ
+    estimateHours: 0.5
+- id: sec-pref
+  title: 環境設定ダイアログ (Kata デザイン踏襲)
+  children:
+  - id: t-pref-vm
+    title: PreferencesViewModel (Categories, SelectedCategory, LanguageOptions)
+    estimateHours: 1.5
+    notes: |
+      Kata の左カテゴリ / 右 DataTemplate パターン踏襲。今回は General カテゴリ
+      のみ、Language ComboBox だけ配置。将来カテゴリ追加しやすい構造にする。
+  - id: t-pref-view
+    title: Views/PreferencesWindow.xaml + .xaml.cs
+    estimateHours: 2
+    notes: |
+      MainWindow と同じ WindowChrome 自前タイトルバー + ダークパレット (DynamicResource)。
+      Kata の色 (#1e1e1e / #252526 / #2b2b2b) は Kudaki の Palette.Dark.xaml トークン
+      (SidebarBackground / ContainerBackground / ControlDarkerBackground) に置換。
+  - id: t-pref-open
+    title: MainWindow のメニューから Preferences を開く経路
+    estimateHours: 0.5
+    notes: |
+      「ヘルプ」の隣に「ツール(_T)」メニューを新設して「環境設定(_P)...」を置く方針。
+      ショートカット: Ctrl+, (VS Code 系標準)。
+- id: sec-migrate
+  title: hardcoded 文字列を Strings.* に置換
+  children:
+  - id: t-migrate-main
+    title: MainWindow.xaml (メニュー・ステータスバー・詳細パネル・Diff Overlay・Landing)
+    estimateHours: 2
+    notes: 約 48 文字列。x:Static {x:Static loc:Strings.Foo} で参照。
+  - id: t-migrate-arrow
+    title: ArrowDiagramWindow.xaml
+    estimateHours: 0.5
+  - id: t-migrate-update
+    title: UpdatePromptWindow.xaml
+    estimateHours: 0.5
+  - id: t-migrate-vm
+    title: MainViewModel.cs / App.xaml.cs 等の C# 側日本語 literal
+    estimateHours: 2
+    notes: |
+      StatusMessage / WindowTitle / Landing status / エラーメッセージなど。
+      string.Format 化してプレースホルダは resx 側で {0} 形式に統一。
+- id: sec-verify
+  title: 動作確認
+  children:
+  - id: t-build
+    title: dotnet build (Release) が clean で通ること
+    estimateHours: 0.5
+  - id: t-smoke
+    title: 起動 → Preferences 開く → English 切替 → 再起動で保存確認
+    estimateHours: 1
+    notes: |
+      WPF 側の切替仕様上、切替直後は既存 window は残る (Kata と同じ挙動)。
+      ダイアログ close → 新規 window 開くと英語で表示されればOK。

@@ -8,6 +8,7 @@
         xmlns:models="clr-namespace:Kudaki.App.Models"
         xmlns:conv="clr-namespace:Kudaki.App.Converters"
         xmlns:behaviors="clr-namespace:Kudaki.App.Behaviors"
+        xmlns:loc="clr-namespace:Kudaki.App.Properties"
         mc:Ignorable="d"
         Title="{Binding WindowTitle.Value}"
         Icon="pack://application:,,,/Assets/kudaki.ico"
@@ -118,6 +119,8 @@
         <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveCommand}"/>
         <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveAsCommand}"/>
         <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding ExportMarkdownCommand}"/>
+        <!-- VS Code / Visual Studio 系標準の Ctrl+, で環境設定を開く -->
+        <KeyBinding Key="OemComma" Modifiers="Ctrl" Command="{Binding OpenPreferencesCommand}"/>
 
         <!-- Enter / Alt+Enter は Window スコープにも配置 (Excel 的な「コミット→次行」)。
              複数行 TextBox (メモ, AcceptsReturn=True) は Enter を消費するので影響なし。
@@ -155,57 +158,62 @@
                   Margin="8,0,0,0"
                   VerticalAlignment="Stretch"
                   WindowChrome.IsHitTestVisibleInChrome="True">
-                <MenuItem Header="ファイル(_F)">
-                    <MenuItem Header="新規(_N)"
+                <MenuItem Header="{x:Static loc:Strings.Menu_File}">
+                    <MenuItem Header="{x:Static loc:Strings.Menu_File_New}"
                               InputGestureText="Ctrl+N"
                               Command="{Binding NewDocumentCommand}"/>
-                    <MenuItem Header="開く(_O)..."
+                    <MenuItem Header="{x:Static loc:Strings.Menu_File_Open}"
                               InputGestureText="Ctrl+O"
                               Command="{Binding OpenCommand}"/>
                     <Separator/>
-                    <MenuItem Header="上書き保存(_S)"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_File_Save}"
                               InputGestureText="Ctrl+S"
                               Command="{Binding SaveCommand}"/>
-                    <MenuItem Header="名前を付けて保存(_A)..."
+                    <MenuItem Header="{x:Static loc:Strings.Menu_File_SaveAs}"
                               InputGestureText="Ctrl+Shift+S"
                               Command="{Binding SaveAsCommand}"/>
                     <Separator/>
-                    <MenuItem Header="Markdown 出力(_E)..."
+                    <MenuItem Header="{x:Static loc:Strings.Menu_File_ExportMarkdown}"
                               InputGestureText="Ctrl+E"
                               Command="{Binding ExportMarkdownCommand}"/>
                     <Separator/>
-                    <MenuItem Header="終了(_X)"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_File_Exit}"
                               InputGestureText="Alt+F4"
                               Command="{x:Static SystemCommands.CloseWindowCommand}"/>
                 </MenuItem>
-                <MenuItem Header="編集(_E)">
-                    <MenuItem Header="同階層に追加"
+                <MenuItem Header="{x:Static loc:Strings.Menu_Edit}">
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_AddSibling}"
                               InputGestureText="Enter"
                               Command="{Binding AddSiblingToSelectedCommand}"/>
-                    <MenuItem Header="子を追加"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_AddChild}"
                               InputGestureText="Alt+Enter"
                               Command="{Binding AddChildToSelectedCommand}"/>
                     <Separator/>
-                    <MenuItem Header="インデント"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_Indent}"
                               InputGestureText="Tab"
                               Command="{Binding IndentSelectedCommand}"/>
-                    <MenuItem Header="アウトデント"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_Outdent}"
                               InputGestureText="Shift+Tab"
                               Command="{Binding OutdentSelectedCommand}"/>
                     <Separator/>
-                    <MenuItem Header="上に移動"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_MoveUp}"
                               InputGestureText="Ctrl+↑"
                               Command="{Binding MoveSelectedUpCommand}"/>
-                    <MenuItem Header="下に移動"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_MoveDown}"
                               InputGestureText="Ctrl+↓"
                               Command="{Binding MoveSelectedDownCommand}"/>
                     <Separator/>
-                    <MenuItem Header="削除"
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Edit_Delete}"
                               InputGestureText="Delete"
                               Command="{Binding DeleteSelectedCommand}"/>
                 </MenuItem>
-                <MenuItem Header="ヘルプ(_H)">
-                    <MenuItem Header="GitHub リポジトリを開く"
+                <MenuItem Header="{x:Static loc:Strings.Menu_Tools}">
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Tools_Preferences}"
+                              InputGestureText="Ctrl+,"
+                              Command="{Binding OpenPreferencesCommand}"/>
+                </MenuItem>
+                <MenuItem Header="{x:Static loc:Strings.Menu_Help}">
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Help_OpenRepository}"
                               Command="{Binding OpenRepositoryCommand}"/>
                 </MenuItem>
             </Menu>
@@ -228,7 +236,7 @@
                 <Hyperlink Command="{Binding OpenReleasePageCommand}"
                            Foreground="{DynamicResource LinkForeground}"
                            TextDecorations="None">
-                    <Run Text="更新あり: "/>
+                    <Run Text="{x:Static loc:Strings.Titlebar_UpdateAvailable_Prefix}"/>
                     <Run Text="{Binding AvailableUpdate.Value.Tag, Mode=OneWay}"/>
                     <Run Text=" →"/>
                 </Hyperlink>
@@ -240,7 +248,7 @@
                         WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button Style="{StaticResource CaptionButton}"
                         Command="{x:Static SystemCommands.MinimizeWindowCommand}"
-                        ToolTip="最小化">
+                        ToolTip="{x:Static loc:Strings.Caption_Minimize}">
                     <Path Data="M0,5 L10,5"
                           Stroke="{DynamicResource ControlDefaultForeground}"
                           StrokeThickness="1"
@@ -248,7 +256,7 @@
                 </Button>
                 <!-- 最大化ボタン: 通常時のみ表示 -->
                 <Button Command="{x:Static SystemCommands.MaximizeWindowCommand}"
-                        ToolTip="最大化">
+                        ToolTip="{x:Static loc:Strings.Caption_Maximize}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource CaptionButton}">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -267,7 +275,7 @@
                 </Button>
                 <!-- 元に戻すボタン: 最大化時のみ表示 -->
                 <Button Command="{x:Static SystemCommands.RestoreWindowCommand}"
-                        ToolTip="元に戻す">
+                        ToolTip="{x:Static loc:Strings.Caption_Restore}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource CaptionButton}">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -286,7 +294,7 @@
                 </Button>
                 <Button Style="{StaticResource CloseCaptionButton}"
                         Command="{x:Static SystemCommands.CloseWindowCommand}"
-                        ToolTip="閉じる">
+                        ToolTip="{x:Static loc:Strings.Caption_Close}">
                     <Path Data="M0,0 L10,10 M0,10 L10,0"
                           Stroke="{DynamicResource ControlDefaultForeground}"
                           StrokeThickness="1"
@@ -303,7 +311,7 @@
                 Padding="10,4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Left"
-                           Text="Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除"
+                           Text="{x:Static loc:Strings.StatusBar_ShortcutHint}"
                            Foreground="{DynamicResource ControlSubtleForeground}"
                            FontSize="11"/>
                 <TextBlock HorizontalAlignment="Right"
@@ -354,7 +362,7 @@
                                 <Grid.ContextMenu>
                                     <ContextMenu>
                                         <!-- 葉タスクだと意味がないので Disabled。判定は Binding + PlacementTarget 経由。 -->
-                                        <MenuItem Header="アローダイアグラムを表示"
+                                        <MenuItem Header="{x:Static loc:Strings.Tree_ContextMenu_ShowArrowDiagram}"
                                                   Command="{Binding PlacementTarget.Tag.ShowArrowDiagramCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                             <MenuItem.Style>
@@ -398,7 +406,7 @@
                                         Height="16"
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Center"
-                                        ToolTip="階層レベル">
+                                        ToolTip="{x:Static loc:Strings.Tree_Tooltip_HierarchyLevel}">
                                     <TextBlock Text="{Binding Depth, StringFormat=L{0}}"
                                                Foreground="{DynamicResource ControlSubtleForeground}"
                                                FontSize="10"
@@ -440,7 +448,7 @@
                                            HorizontalAlignment="Center"
                                            FontSize="14"
                                            Foreground="{DynamicResource WarningGlyphForeground}"
-                                           ToolTip="見積 40h を超えています。もう少し砕けませんか？"
+                                           ToolTip="{x:Static loc:Strings.Tree_Tooltip_NeedsBreakdown}"
                                            Visibility="{Binding NeedsBreakdown, Converter={StaticResource BoolToVis}}"/>
                             </Grid>
                         </HierarchicalDataTemplate>
@@ -452,9 +460,9 @@
                            Foreground="{DynamicResource ControlSubtleForeground}"
                            IsHitTestVisible="False"
                            TextAlignment="Center">
-                    <Run Text="Enter キーで最初のタスクを追加"/>
+                    <Run Text="{x:Static loc:Strings.Tree_Empty_Hint_Line1}"/>
                     <LineBreak/>
-                    <Run Text="（ツリーがフォーカスされている状態で）"
+                    <Run Text="{x:Static loc:Strings.Tree_Empty_Hint_Line2}"
                          FontSize="11"/>
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -482,12 +490,12 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
                     <StackPanel DataContext="{Binding SelectedTask.Value}">
 
-                        <TextBlock Text="詳細"
+                        <TextBlock Text="{x:Static loc:Strings.Detail_Header}"
                                    FontSize="16" FontWeight="SemiBold"
                                    Margin="0,0,0,12"
                                    Foreground="{DynamicResource ControlDefaultForeground}"/>
 
-                        <TextBlock Text="タイトル" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="{x:Static loc:Strings.Detail_Title}" Style="{StaticResource FieldLabel}"/>
                         <TextBox x:Name="PropTitle"
                                  AutomationProperties.AutomationId="PropTitle"
                                  Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
@@ -500,7 +508,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="見積 (h)" Style="{StaticResource FieldLabel}"/>
+                                <TextBlock Text="{x:Static loc:Strings.Detail_Estimate}" Style="{StaticResource FieldLabel}"/>
                                 <TextBox AutomationProperties.AutomationId="PropEstimate"
                                          Text="{Binding EstimateHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource FieldBox}"
@@ -508,8 +516,8 @@
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Style="{StaticResource FieldLabel}">
-                                    <Run Text="残 (h)"/>
-                                    <Run Text=" — 毎日更新" Foreground="{DynamicResource ControlSubtleForeground}" FontSize="10"/>
+                                    <Run Text="{x:Static loc:Strings.Detail_Remaining}"/>
+                                    <Run Text="{x:Static loc:Strings.Detail_Remaining_Suffix}" Foreground="{DynamicResource ControlSubtleForeground}" FontSize="10"/>
                                 </TextBlock>
                                 <TextBox AutomationProperties.AutomationId="PropRemaining"
                                          Text="{Binding RemainingHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=PropertyChanged}"
@@ -518,15 +526,15 @@
                             </StackPanel>
                         </Grid>
 
-                        <TextBlock Text="担当者" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="{x:Static loc:Strings.Detail_Assignee}" Style="{StaticResource FieldLabel}"/>
                         <TextBox Text="{Binding Assignee, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource FieldBox}"/>
 
-                        <TextBlock Text="期限" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="{x:Static loc:Strings.Detail_DueDate}" Style="{StaticResource FieldLabel}"/>
                         <DatePicker SelectedDate="{Binding DueDate, Converter={StaticResource DateOnlyConv}, UpdateSourceTrigger=PropertyChanged}"
                                     Margin="0,0,0,8"/>
 
-                        <TextBlock Text="メモ" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="{x:Static loc:Strings.Detail_Notes}" Style="{StaticResource FieldLabel}"/>
                         <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource FieldBox}"
                                  AcceptsReturn="True"
@@ -536,8 +544,8 @@
 
                         <!-- 先行タスク (依存, FS 固定) -->
                         <TextBlock Style="{StaticResource FieldLabel}">
-                            <Run Text="先行タスク"/>
-                            <Run Text=" — このタスクが着手できるまでに完了している必要があるもの"
+                            <Run Text="{x:Static loc:Strings.Detail_Predecessors}"/>
+                            <Run Text="{x:Static loc:Strings.Detail_Predecessors_Suffix}"
                                  Foreground="{DynamicResource ControlSubtleForeground}" FontSize="10"/>
                         </TextBlock>
 
@@ -572,7 +580,7 @@
                                                     Background="Transparent"
                                                     BorderThickness="0"
                                                     Foreground="{DynamicResource ChipRemoveForeground}"
-                                                    ToolTip="この先行タスクを外す"/>
+                                                    ToolTip="{x:Static loc:Strings.Detail_Predecessor_RemoveTooltip}"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
@@ -585,20 +593,20 @@
                                   DisplayMemberPath="Title"
                                   SelectionChanged="PredecessorCombo_SelectionChanged"
                                   Margin="0,0,0,8"
-                                  ToolTip="ここから選ぶと先行タスクとして追加します"/>
+                                  ToolTip="{x:Static loc:Strings.Detail_Predecessor_AddTooltip}"/>
 
                         <!-- 集計セクション -->
                         <Border BorderBrush="{DynamicResource SubtleDividerBrush}"
                                 BorderThickness="0,1,0,0"
                                 Margin="0,8,0,8"/>
 
-                        <TextBlock Text="集計 (葉から派生)" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="{x:Static loc:Strings.Detail_Summary_Header}" Style="{StaticResource FieldLabel}"/>
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="見積合計: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Text="{x:Static loc:Strings.Detail_Summary_EstimateTotal}" Foreground="{DynamicResource ControlSecondaryForeground}"/>
                             <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
                                 <Run Text="{Binding RolledUpEstimateHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
                                 <Run Text="h"/>
@@ -609,7 +617,7 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="残合計: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Text="{x:Static loc:Strings.Detail_Summary_RemainingTotal}" Foreground="{DynamicResource ControlSecondaryForeground}"/>
                             <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
                                 <Run Text="{Binding RolledUpRemainingHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
                                 <Run Text="h"/>
@@ -620,7 +628,7 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="消化: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Text="{x:Static loc:Strings.Detail_Summary_ActualTotal}" Foreground="{DynamicResource ControlSecondaryForeground}"/>
                             <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
                                 <Run Text="{Binding RolledUpActualHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
                                 <Run Text="h"/>
@@ -631,7 +639,7 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="進捗: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Text="{x:Static loc:Strings.Detail_Summary_Progress}" Foreground="{DynamicResource ControlSecondaryForeground}"/>
                             <TextBlock Grid.Column="1"
                                        Foreground="{DynamicResource ControlDefaultForeground}"
                                        Text="{Binding RolledUpProgressPercent, StringFormat={}{0}%, TargetNullValue=--, Mode=OneWay}"/>
@@ -653,9 +661,9 @@
                                 <TextBlock Foreground="{DynamicResource ControlDefaultForeground}"
                                            TextWrapping="Wrap"
                                            VerticalAlignment="Center">
-                                    <Run Text="このタスクは葉なのに見積 40h を超えてるっす。"/>
+                                    <Run Text="{x:Static loc:Strings.Detail_Warning_Line1}"/>
                                     <LineBreak/>
-                                    <Run Text="もう少し砕けませんか？"
+                                    <Run Text="{x:Static loc:Strings.Detail_Warning_Line2}"
                                          Foreground="{DynamicResource ControlSubtleForeground}"/>
                                 </TextBlock>
                             </StackPanel>
@@ -692,17 +700,17 @@
                         BorderBrush="{DynamicResource SubtleDividerBrush}"
                         BorderThickness="0,0,0,1">
                     <StackPanel>
-                        <TextBlock Text="AI からの変更提案"
+                        <TextBlock Text="{x:Static loc:Strings.Diff_Header}"
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource ControlDefaultForeground}"/>
                         <TextBlock FontSize="11"
                                    Margin="0,4,0,0"
                                    Foreground="{DynamicResource ControlSubtleForeground}">
-                            <Run Text="送信元: "/>
-                            <Run Text="{Binding CurrentPendingSet.Value.Source, Mode=OneWay, TargetNullValue='(不明)'}"/>
+                            <Run Text="{x:Static loc:Strings.Diff_SourceLabel}"/>
+                            <Run Text="{Binding CurrentPendingSet.Value.Source, Mode=OneWay, TargetNullValue={x:Static loc:Strings.Diff_Source_Unknown}}"/>
                             <Run Text=" · "/>
-                            <Run Text="{Binding CurrentPendingSet.Value.Changes.Count, Mode=OneWay, StringFormat={}{0} 件の変更}"/>
+                            <Run Text="{Binding CurrentPendingSet.Value.Changes.Count, Mode=OneWay, StringFormat={x:Static loc:Strings.Diff_Changes_CountFormat}}"/>
                         </TextBlock>
                     </StackPanel>
                 </Border>
@@ -713,7 +721,7 @@
                         BorderBrush="{DynamicResource SubtleDividerBrush}"
                         BorderThickness="0,1,0,0">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="却下 (全部)"
+                        <Button Content="{x:Static loc:Strings.Diff_Reject}"
                                 Command="{Binding RejectCurrentPendingCommand}"
                                 Padding="16,6"
                                 Margin="0,0,8,0"
@@ -722,7 +730,7 @@
                                 BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
                                 BorderThickness="1"
                                 Cursor="Hand"/>
-                        <Button Content="承認 (全部反映)"
+                        <Button Content="{x:Static loc:Strings.Diff_Approve}"
                                 Command="{Binding ApproveCurrentPendingCommand}"
                                 Padding="16,6"
                                 Background="{DynamicResource PrimaryDefaultBackground}"
@@ -822,10 +830,10 @@
                                                                Foreground="{DynamicResource ControlDefaultForeground}">
                                                         <Run Text="{Binding FieldName, Mode=OneWay}" FontWeight="SemiBold"/>
                                                         <Run Text=": "/>
-                                                        <Run Text="{Binding Before, Mode=OneWay, TargetNullValue='(未設定)'}"
+                                                        <Run Text="{Binding Before, Mode=OneWay, TargetNullValue={x:Static loc:Strings.Common_Value_Unset}}"
                                                              Foreground="#FFE59E9E"/>
                                                         <Run Text="  →  "/>
-                                                        <Run Text="{Binding After, Mode=OneWay, TargetNullValue='(未設定)'}"
+                                                        <Run Text="{Binding After, Mode=OneWay, TargetNullValue={x:Static loc:Strings.Common_Value_Unset}}"
                                                              Foreground="#FF9EE59E"/>
                                                     </TextBlock>
                                                 </DataTemplate>
@@ -860,13 +868,13 @@
                    HorizontalAlignment="Center"
                    Margin="0,0,0,40"
                    RenderOptions.BitmapScalingMode="HighQuality"/>
-            <TextBlock Text="KUDAKI"
+            <TextBlock Text="{x:Static loc:Strings.Landing_Product}"
                        FontSize="44"
                        FontWeight="Light"
                        Foreground="#FFEBEBEB"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,10"/>
-            <TextBlock Text="WORK BREAKDOWN STRUCTURE EDITOR"
+            <TextBlock Text="{x:Static loc:Strings.Landing_Tagline}"
                        FontSize="11"
                        Foreground="#FF8E8E8E"
                        HorizontalAlignment="Center"/>

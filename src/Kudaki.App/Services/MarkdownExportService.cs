@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Kudaki.App.Models;
+using Kudaki.App.Properties;
 
 namespace Kudaki.App.Services;
 
@@ -16,7 +17,7 @@ public sealed class MarkdownExportService
     public const double BreakdownThresholdHours = 40.0;
 
     public const string PrimaryExtension = ".md";
-    public const string SaveFilter = "Markdown ファイル (*.md)|*.md|すべてのファイル (*.*)|*.*";
+    public static string SaveFilter => Strings.Dialog_Markdown_Filter;
 
     public async Task ExportAsync(WbsDocument document, string path, CancellationToken ct = default)
     {
@@ -29,16 +30,16 @@ public sealed class MarkdownExportService
     {
         var sb = new StringBuilder();
 
-        sb.Append("# ").AppendLine(string.IsNullOrWhiteSpace(document.Title) ? "Kudaki WBS" : document.Title);
+        sb.Append("# ").AppendLine(string.IsNullOrWhiteSpace(document.Title) ? Strings.Md_FallbackDocumentTitle : document.Title);
         sb.AppendLine();
-        sb.Append("*更新: ")
-          .Append(document.ModifiedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))
-          .AppendLine("*");
+        sb.AppendLine(string.Format(
+            Strings.Md_UpdatedLine_Format,
+            document.ModifiedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")));
         sb.AppendLine();
 
         if (document.Tasks.Count == 0)
         {
-            sb.AppendLine("*（タスクなし）*");
+            sb.AppendLine(Strings.Md_NoTasks);
             return sb.ToString();
         }
 
@@ -62,7 +63,7 @@ public sealed class MarkdownExportService
         var warning = task.IsLeaf && (task.EstimateHours ?? 0.0) > BreakdownThresholdHours;
         var warningGlyph = warning ? " ⚠" : "";
 
-        var title = string.IsNullOrWhiteSpace(task.Title) ? "(無題)" : task.Title;
+        var title = string.IsNullOrWhiteSpace(task.Title) ? Strings.Md_UntitledTask : task.Title;
 
         sb.Append(indent).Append("- ").Append(check).Append(" **").Append(title).Append("**").Append(warningGlyph);
 
@@ -74,7 +75,7 @@ public sealed class MarkdownExportService
 
         if (warning)
         {
-            sb.Append(" *(まだ砕けます)*");
+            sb.Append(Strings.Md_Warning_Suffix);
         }
 
         sb.AppendLine();
@@ -105,11 +106,11 @@ public sealed class MarkdownExportService
         if (task.IsLeaf)
         {
             if (task.EstimateHours is double est)
-                parts.Add($"見積 {FormatHours(est)}h");
+                parts.Add(string.Format(Strings.Md_Leaf_Estimate_Format, FormatHours(est)));
             if (task.RemainingHours is double rem)
-                parts.Add($"残 {FormatHours(rem)}h");
+                parts.Add(string.Format(Strings.Md_Leaf_Remaining_Format, FormatHours(rem)));
             var prog = task.GetRolledUpProgressPercent();
-            if (prog.HasValue) parts.Add($"進捗 {prog.Value}%");
+            if (prog.HasValue) parts.Add(string.Format(Strings.Md_Leaf_Progress_Format, prog.Value));
         }
         else
         {
@@ -118,13 +119,13 @@ public sealed class MarkdownExportService
             var rem = task.GetRolledUpRemainingHours();
             var prog = task.GetRolledUpProgressPercent();
 
-            if (est > 0) parts.Add($"見積合計 {FormatHours(est)}h");
-            if (est > 0) parts.Add($"残合計 {FormatHours(rem)}h");
-            if (prog.HasValue) parts.Add($"進捗 {prog.Value}%");
+            if (est > 0) parts.Add(string.Format(Strings.Md_Inner_EstimateTotal_Format, FormatHours(est)));
+            if (est > 0) parts.Add(string.Format(Strings.Md_Inner_RemainingTotal_Format, FormatHours(rem)));
+            if (prog.HasValue) parts.Add(string.Format(Strings.Md_Inner_Progress_Format, prog.Value));
         }
 
-        if (!string.IsNullOrWhiteSpace(task.Assignee)) parts.Add($"担当 {task.Assignee}");
-        if (task.DueDate is DateOnly due) parts.Add($"期限 {due:yyyy-MM-dd}");
+        if (!string.IsNullOrWhiteSpace(task.Assignee)) parts.Add(string.Format(Strings.Md_Meta_Assignee_Format, task.Assignee));
+        if (task.DueDate is DateOnly due) parts.Add(string.Format(Strings.Md_Meta_DueDate_Format, due));
 
         return string.Join(" / ", parts);
     }

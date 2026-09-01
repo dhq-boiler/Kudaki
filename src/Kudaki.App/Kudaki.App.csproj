@@ -8,6 +8,9 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Kudaki</AssemblyName>
     <RootNamespace>Kudaki.App</RootNamespace>
+    <!-- Strings.resx が中立 (fallback) の英語。ja サテライトが無い言語圏の起動時は
+         これが使われる。 -->
+    <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 
   <PropertyGroup>

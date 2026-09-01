@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Kudaki.App.Models;
+using Kudaki.App.Properties;
 
 namespace Kudaki.App.Services.Mcp;
 
@@ -38,7 +39,7 @@ public static class DiffCalculator
         if (docFieldDiffs.Count > 0)
         {
             // Overlay の表示用に stub TaskNode を挟む (Before/After.Title を「(ドキュメント全体)」に)
-            var stub = new TaskNode { Id = DocumentPseudoTaskId, Title = "(ドキュメント全体)" };
+            var stub = new TaskNode { Id = DocumentPseudoTaskId, Title = Strings.Diff_DocumentLevelPseudoTitle };
             changes.Add(new PendingChange
             {
                 Op = PendingChangeOp.Update,

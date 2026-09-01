@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Kudaki.App.Properties;
 using Kudaki.App.Services;
 using R3;
 
@@ -28,13 +29,10 @@ public sealed partial class UpdatePromptViewModel : ObservableObject
     public UpdatePromptViewModel(UpdateInfo update)
     {
         _update = update;
-        Title = new BindableReactiveProperty<string>($"Kudaki {update.Tag} が利用可能です");
-        Message = new BindableReactiveProperty<string>(
-            CanAutoUpdate
-                ? $"新しいバージョン {update.Tag} をダウンロードしてインストールします。" +
-                  " インストール中に Kudaki は自動的に再起動します。"
-                : $"新しいバージョン {update.Tag} が公開されています。" +
-                  " ブラウザで Releases ページを開いて手動でダウンロードしてください。");
+        Title = new BindableReactiveProperty<string>(string.Format(Strings.Update_Title_Format, update.Tag));
+        Message = new BindableReactiveProperty<string>(string.Format(
+            CanAutoUpdate ? Strings.Update_Message_AutoUpdate_Format : Strings.Update_Message_Manual_Format,
+            update.Tag));
     }
 
     [RelayCommand]
@@ -47,7 +45,7 @@ public sealed partial class UpdatePromptViewModel : ObservableObject
         var progress = new Progress<double>(f =>
         {
             ProgressFraction.Value = f;
-            ProgressText.Value = $"ダウンロード中... {f * 100:0}%";
+            ProgressText.Value = string.Format(Strings.Update_Progress_Format, f * 100);
         });
 
         try
@@ -68,7 +66,7 @@ public sealed partial class UpdatePromptViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ErrorMessage.Value = $"ダウンロードに失敗したっす: {ex.Message}";
+            ErrorMessage.Value = string.Format(Strings.Update_Error_DownloadFailed_Format, ex.Message);
             IsDownloading.Value = false;
         }
     }

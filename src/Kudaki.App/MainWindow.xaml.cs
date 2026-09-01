@@ -26,9 +26,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        var app = (App)Application.Current;
         var vm = new MainViewModel(
             new WpfFileDialogService(this),
-            new WpfUpdatePromptService(this));
+            new WpfUpdatePromptService(this),
+            new WpfPreferencesDialogService(this, app.LanguageService));
         vm.SetArrowDiagramService(new WpfArrowDiagramService(this));
         DataContext = vm;
         MainViewModel.Current = vm;
@@ -48,8 +50,8 @@ public partial class MainWindow : Window
 
         // 起動 progress を刻む。UI 生成完了 → Loaded (UI 準備完了) の 2 段階を View 側で報告し、
         // MCP 起動完了と Document ロードは App/ViewModel 側から報告する。
-        vm.ReportLoading(30, "起動中");
-        Loaded += (_, _) => vm.ReportLoading(50, "UI 準備完了");
+        vm.ReportLoading(30, Kudaki.App.Properties.Strings.Landing_Status_Initializing);
+        Loaded += (_, _) => vm.ReportLoading(50, Kudaki.App.Properties.Strings.Landing_Status_Initializing);
 
         // Landing overlay の可視制御。XAML 側 Visibility バインドで拾えなかったので
         // R3 の Subscribe で code-behind から直接切り替える。

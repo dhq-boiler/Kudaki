@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kudaki.App.Models;
+using Kudaki.App.Properties;
 using Kudaki.App.Services;
 using R3;
 
@@ -16,13 +17,14 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly UpdateCheckService _updateCheck = new();
     private readonly IFileDialogService _dialogs;
     private readonly IUpdatePromptService _updatePrompt;
+    private readonly IPreferencesDialogService _preferencesDialog;
     private WbsDocument _document = null!;
     private TaskNodeViewModel _rootVm = null!;
     private string? _currentFilePath;
 
     // R3 の BindableReactiveProperty を採用。XAML は {Binding X.Value} でアクセス。
     public BindableReactiveProperty<TaskNodeViewModel?> SelectedTask { get; } = new(null);
-    public BindableReactiveProperty<string> WindowTitle { get; } = new("Kudaki - 無題");
+    public BindableReactiveProperty<string> WindowTitle { get; } = new(Strings.Main_Title_Untitled);
     public BindableReactiveProperty<bool> IsDirty { get; } = new(false);
     public BindableReactiveProperty<string?> StatusMessage { get; } = new(null);
     public BindableReactiveProperty<UpdateInfo?> AvailableUpdate { get; } = new(null);
@@ -31,16 +33,20 @@ public sealed partial class MainViewModel : ObservableObject
     // 進捗は各起動フェーズが ReportLoading で 0→100 を報告して埋めていく。
     public BindableReactiveProperty<bool> IsLoading { get; } = new(true);
     public BindableReactiveProperty<int> LoadingPercent { get; } = new(0);
-    public BindableReactiveProperty<string> LoadingStatus { get; } = new("Kudaki を起動中");
+    public BindableReactiveProperty<string> LoadingStatus { get; } = new(Strings.Landing_Status_Startup);
 
     // 先行タスク追加候補 (SelectedTask 変更・依存編集後に再計算)
     public BindableReactiveProperty<System.Collections.Generic.IReadOnlyList<TaskNodeViewModel>>
         SelectablePredecessors { get; } = new(System.Array.Empty<TaskNodeViewModel>());
 
-    public MainViewModel(IFileDialogService dialogs, IUpdatePromptService updatePrompt)
+    public MainViewModel(
+        IFileDialogService dialogs,
+        IUpdatePromptService updatePrompt,
+        IPreferencesDialogService preferencesDialog)
     {
         _dialogs = dialogs;
         _updatePrompt = updatePrompt;
+        _preferencesDialog = preferencesDialog;
         LoadDocument(new WbsDocument());
         // SelectedTask が切り替わったら候補一覧を再計算
         SelectedTask.Subscribe(_ => RecomputeSelectablePredecessors());
@@ -132,8 +138,11 @@ public sealed partial class MainViewModel : ObservableObject
     {
         LoadDocument(proposed);
         IsDirty.Value = true;
-        StatusMessage.Value = "AI 提案を反映しました (未保存)";
+        StatusMessage.Value = Strings.Status_AiProposalApplied;
     }
+
+    [RelayCommand]
+    private void OpenPreferences() => _preferencesDialog.Show();
 
     // 起動シーケンスの各フェーズが呼ぶ進捗レポート。100 に達したら Landing を消す。
     // UI スレッド外から呼ばれる可能性があるので必要なら Dispatcher で戻す。
@@ -193,8 +202,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _currentFilePath = path;
         WindowTitle.Value = path is null
-            ? "Kudaki - 無題"
-            : $"Kudaki - {System.IO.Path.GetFileName(path)}";
+            ? Strings.Main_Title_Untitled
+            : string.Format(Strings.Main_Title_Format, System.IO.Path.GetFileName(path));
     }
 
     // 現在ファイルパスから Markdown 出力の推奨ファイル名を生成。
@@ -220,7 +229,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task OpenAsync()
     {
-        var path = await _dialogs.ShowOpenAsync(YamlStorageService.OpenFilter, "WBS ファイルを開く");
+        var path = await _dialogs.ShowOpenAsync(YamlStorageService.OpenFilter, Strings.Dialog_Open_Title);
         if (path is null) return;
         await LoadFromPathAsync(path).ConfigureAwait(true);
     }
@@ -243,7 +252,7 @@ public sealed partial class MainViewModel : ObservableObject
             ? "untitled.wbs.yaml"
             : System.IO.Path.GetFileName(_currentFilePath);
         var path = await _dialogs.ShowSaveAsAsync(
-            YamlStorageService.SaveFilter, "名前を付けて保存", defaultName, YamlStorageService.PrimaryExtension);
+            YamlStorageService.SaveFilter, Strings.Dialog_SaveAs_Title, defaultName, YamlStorageService.PrimaryExtension);
         if (path is null) return;
         await SaveToPathInternalAsync(path).ConfigureAwait(true);
     }
@@ -252,17 +261,17 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task ExportMarkdownAsync()
     {
         var path = await _dialogs.ShowSaveAsAsync(
-            MarkdownExportService.SaveFilter, "Markdown エクスポート",
+            MarkdownExportService.SaveFilter, Strings.Dialog_MarkdownExport_Title,
             SuggestedMarkdownFileName(), MarkdownExportService.PrimaryExtension);
         if (path is null) return;
         try
         {
             await _markdown.ExportAsync(_document, path).ConfigureAwait(true);
-            StatusMessage.Value = $"Markdown エクスポートしました: {System.IO.Path.GetFileName(path)}";
+            StatusMessage.Value = string.Format(Strings.Status_MarkdownExported_Format, System.IO.Path.GetFileName(path));
         }
         catch (Exception ex)
         {
-            StatusMessage.Value = $"Markdown エクスポート失敗: {ex.Message}";
+            StatusMessage.Value = string.Format(Strings.Status_MarkdownExportFailed_Format, ex.Message);
         }
     }
 
@@ -314,17 +323,17 @@ public sealed partial class MainViewModel : ObservableObject
     {
         try
         {
-            ReportLoading(80, $"ファイルを読み込み中: {System.IO.Path.GetFileName(path)}");
+            ReportLoading(80, string.Format(Strings.Status_Loading_Format, System.IO.Path.GetFileName(path)));
             var doc = await _storage.LoadAsync(path).ConfigureAwait(true);
-            ReportLoading(95, "ドキュメントを構築中");
+            ReportLoading(95, Strings.Status_Building);
             LoadDocument(doc);
             SetCurrentFilePath(path);
-            StatusMessage.Value = $"読み込みました: {System.IO.Path.GetFileName(path)}";
-            ReportLoading(100, "完了");
+            StatusMessage.Value = string.Format(Strings.Status_Loaded_Format, System.IO.Path.GetFileName(path));
+            ReportLoading(100, Strings.Status_Complete);
         }
         catch (Exception ex)
         {
-            StatusMessage.Value = $"読み込み失敗: {ex.Message}";
+            StatusMessage.Value = string.Format(Strings.Status_LoadFailed_Format, ex.Message);
             ReportLoading(100);  // 失敗時も Landing は消す (エラーは StatusMessage で見せる)
         }
     }
@@ -336,11 +345,11 @@ public sealed partial class MainViewModel : ObservableObject
             await _storage.SaveAsync(_document, path).ConfigureAwait(true);
             SetCurrentFilePath(path);
             IsDirty.Value = false;
-            StatusMessage.Value = $"保存しました: {System.IO.Path.GetFileName(path)}";
+            StatusMessage.Value = string.Format(Strings.Status_Saved_Format, System.IO.Path.GetFileName(path));
         }
         catch (Exception ex)
         {
-            StatusMessage.Value = $"保存失敗: {ex.Message}";
+            StatusMessage.Value = string.Format(Strings.Status_SaveFailed_Format, ex.Message);
         }
     }
 
@@ -439,7 +448,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         target.Predecessors.Add(candidate);
-        StatusMessage.Value = $"先行タスクを追加: {candidate.Title}";
+        StatusMessage.Value = string.Format(Strings.Status_PredecessorAdded_Format, candidate.Title);
         RecomputeSelectablePredecessors();
     }
 
@@ -450,7 +459,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (target is null || predecessor is null) return;
         if (target.Predecessors.Remove(predecessor))
         {
-            StatusMessage.Value = $"先行タスクを解除: {predecessor.Title}";
+            StatusMessage.Value = string.Format(Strings.Status_PredecessorRemoved_Format, predecessor.Title);
             RecomputeSelectablePredecessors();
         }
     }

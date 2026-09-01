@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Kudaki.App.Properties;
 using Kudaki.App.ViewModels;
 
 namespace Kudaki.App.Services;
@@ -16,12 +17,12 @@ public static class DependencyValidator
     public static ValidationResult CanAddPredecessor(
         TaskNodeViewModel target, TaskNodeViewModel candidate)
     {
-        if (candidate == target) return new(false, "自分自身を先行タスクにできないっす");
-        if (target.Predecessors.Contains(candidate)) return new(false, "すでに先行タスクとして登録されているっす");
+        if (candidate == target) return new(false, Strings.Dep_Error_Self);
+        if (target.Predecessors.Contains(candidate)) return new(false, Strings.Dep_Error_AlreadyRegistered);
         if (IsAncestorOrDescendant(target, candidate))
-            return new(false, "祖先または子孫との依存関係は張れないっす (完了が包含関係で意味が重複するため)");
+            return new(false, Strings.Dep_Error_AncestryRelation);
         if (WouldCreateCycle(target, candidate))
-            return new(false, "循環依存になるっす (この依存を張ると target → ... → candidate → target のループが発生)");
+            return new(false, Strings.Dep_Error_Cycle);
         return new(true, null);
     }
 

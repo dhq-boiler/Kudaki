@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Kudaki.App.Properties;
 using R3;
 
 namespace Kudaki.App.ViewModels;
@@ -34,7 +35,7 @@ public sealed partial class ArrowDiagramViewModel : ObservableObject
     public ArrowDiagramViewModel(TaskNodeViewModel parent)
     {
         Parent = parent;
-        Title = new BindableReactiveProperty<string>($"アローダイアグラム — {parent.Title}");
+        Title = new BindableReactiveProperty<string>(string.Format(Strings.Arrow_Title_Format, parent.Title));
 
         var children = parent.Children.ToList();
         var childIdSet = new HashSet<string>(children.Select(c => c.Id));
