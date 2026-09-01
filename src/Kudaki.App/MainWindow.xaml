@@ -3,27 +3,383 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Kudaki.App"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        xmlns:vm="clr-namespace:Kudaki.App.ViewModels"
+        xmlns:conv="clr-namespace:Kudaki.App.Converters"
         mc:Ignorable="d"
-        Title="Kudaki"
+        Title="{Binding WindowTitle}"
         Height="720" Width="1200"
         MinHeight="480" MinWidth="720"
         Background="{DynamicResource BackgroundColour}"
         Foreground="{DynamicResource ControlDefaultForeground}"
         FontFamily="Yu Gothic UI, Segoe UI"
-        FontSize="13">
-    <Grid>
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock Text="Kudaki"
-                       FontSize="48"
-                       FontWeight="Light"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource ControlDefaultForeground}"/>
-            <TextBlock Text="Excel より速く。まだ砕けます。"
-                       FontSize="14"
-                       Margin="0,8,0,0"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource ControlSubtleForeground}"/>
-        </StackPanel>
-    </Grid>
+        FontSize="13"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True"
+        FocusManager.FocusedElement="{Binding ElementName=Tree}">
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+        <conv:NullableNumberStringConverter x:Key="NumStrConv"/>
+        <conv:DateOnlyToDateTimeConverter x:Key="DateOnlyConv"/>
+
+        <!-- Toolbar-like top button -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tree item の title 用インライン TextBox -->
+        <Style x:Key="InlineTitleBox" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource ControlDefaultForeground}"/>
+            <Setter Property="MinWidth" Value="240"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 詳細パネル用 TextBox -->
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource ControlDefaultForeground}"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <!-- TreeViewItem: IsSelected/IsExpanded を VM と TwoWay -->
+        <Style TargetType="TreeViewItem">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+            <Setter Property="Padding" Value="2"/>
+        </Style>
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <!-- ファイル操作: Window スコープでOK -->
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewDocumentCommand}"/>
+    </Window.InputBindings>
+
+    <DockPanel>
+
+        <!-- ==================== 上部ツールバー ==================== -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource WindowTitleColour}"
+                BorderBrush="{DynamicResource SubtleDividerBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="新規 (Ctrl+N)"
+                        Command="{Binding NewDocumentCommand}"
+                        Style="{StaticResource ToolbarButton}"/>
+                <Button x:Name="OpenButton"
+                        Content="開く... (Ctrl+O)"
+                        Style="{StaticResource ToolbarButton}"/>
+                <Button x:Name="SaveButton"
+                        Content="保存 (Ctrl+S)"
+                        Style="{StaticResource ToolbarButton}"/>
+                <Button x:Name="SaveAsButton"
+                        Content="名前を付けて保存... (Ctrl+Shift+S)"
+                        Style="{StaticResource ToolbarButton}"/>
+                <Separator Margin="8,0" Background="{DynamicResource SubtleDividerBrush}" Width="1"/>
+                <TextBlock VerticalAlignment="Center"
+                           Foreground="{DynamicResource ControlSubtleForeground}"
+                           FontSize="11"
+                           Text="Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ==================== 下部ステータスバー ==================== -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource ContainerBackground}"
+                BorderBrush="{DynamicResource SubtleDividerBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="10,4">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           Text="{Binding WindowTitle}"
+                           Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                <TextBlock HorizontalAlignment="Right"
+                           Text="{Binding StatusMessage}"
+                           Foreground="{DynamicResource ControlSubtleForeground}"/>
+            </DockPanel>
+        </Border>
+
+        <!-- ==================== 本体: TreeView + 詳細パネル ==================== -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="400"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="320" MinWidth="240"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: TreeView -->
+            <Grid Grid.Column="0" Background="{DynamicResource BackgroundColour}">
+
+                <TreeView x:Name="Tree"
+                          ItemsSource="{Binding RootTasks}"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="8"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          SelectedItemChanged="Tree_SelectedItemChanged">
+
+                    <TreeView.InputBindings>
+                        <!-- Tree にフォーカスがあるときのみ発火するキー -->
+                        <KeyBinding Key="Enter" Command="{Binding AddSiblingToSelectedCommand}"/>
+                        <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding AddChildToSelectedCommand}"/>
+                        <KeyBinding Key="Delete" Command="{Binding DeleteSelectedCommand}"/>
+                        <KeyBinding Key="Tab" Command="{Binding IndentSelectedCommand}"/>
+                        <KeyBinding Key="Tab" Modifiers="Shift" Command="{Binding OutdentSelectedCommand}"/>
+                        <KeyBinding Key="Up" Modifiers="Ctrl" Command="{Binding MoveSelectedUpCommand}"/>
+                        <KeyBinding Key="Down" Modifiers="Ctrl" Command="{Binding MoveSelectedDownCommand}"/>
+                    </TreeView.InputBindings>
+
+                    <TreeView.Resources>
+                        <HierarchicalDataTemplate DataType="{x:Type vm:TaskNodeViewModel}"
+                                                   ItemsSource="{Binding Children}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InlineTitleBox}"/>
+
+                                <!-- 進捗% -->
+                                <TextBlock Text="{Binding RolledUpProgressPercent, StringFormat={}{0}%, TargetNullValue=--}"
+                                           Margin="12,0,0,0"
+                                           MinWidth="34"
+                                           TextAlignment="Right"
+                                           Foreground="{DynamicResource ControlSubtleForeground}"
+                                           VerticalAlignment="Center"/>
+
+                                <!-- 進捗バー -->
+                                <ProgressBar Width="80" Height="6" Margin="8,0,0,0"
+                                             VerticalAlignment="Center"
+                                             Minimum="0" Maximum="100"
+                                             Value="{Binding RolledUpProgressPercent, Mode=OneWay, TargetNullValue=0, FallbackValue=0}"
+                                             Background="{DynamicResource ControlDarkerBackground}"
+                                             BorderThickness="0"
+                                             Foreground="{DynamicResource PrimaryDefaultBackground}"/>
+
+                                <!-- 見積時間 (rolled-up) -->
+                                <TextBlock Margin="12,0,0,0"
+                                           MinWidth="70"
+                                           TextAlignment="Right"
+                                           Foreground="{DynamicResource ControlSubtleForeground}"
+                                           VerticalAlignment="Center">
+                                    <Run Text="{Binding RolledUpEstimateHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
+                                    <Run Text="h" Foreground="{DynamicResource ControlSubtleForeground}"/>
+                                </TextBlock>
+
+                                <!-- 砕き警告 -->
+                                <TextBlock Text="⚠"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="14"
+                                           Foreground="{DynamicResource WarningGlyphForeground}"
+                                           ToolTip="見積 40h を超えています。もう少し砕けませんか？"
+                                           Visibility="{Binding NeedsBreakdown, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+                    </TreeView.Resources>
+                </TreeView>
+
+                <!-- 空状態のヒント -->
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{DynamicResource ControlSubtleForeground}"
+                           IsHitTestVisible="False"
+                           TextAlignment="Center">
+                    <Run Text="Enter キーで最初のタスクを追加"/>
+                    <LineBreak/>
+                    <Run Text="（ツリーがフォーカスされている状態で）"
+                         FontSize="11"/>
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RootTasks.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="1"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="{DynamicResource SubtleDividerBrush}"
+                          ShowsPreview="False"/>
+
+            <!-- Right: プロパティパネル -->
+            <Grid Grid.Column="2"
+                  Background="{DynamicResource SidebarBackground}"
+                  Visibility="{Binding SelectedTask, Converter={StaticResource NullToVis}}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel DataContext="{Binding SelectedTask}">
+
+                        <TextBlock Text="詳細"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Margin="0,0,0,12"
+                                   Foreground="{DynamicResource ControlDefaultForeground}"/>
+
+                        <TextBlock Text="タイトル" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="PropTitle"
+                                 AutomationProperties.AutomationId="PropTitle"
+                                 Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource FieldBox}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="見積 (h)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox AutomationProperties.AutomationId="PropEstimate"
+                                         Text="{Binding EstimateHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
+                                         Style="{StaticResource FieldBox}"
+                                         IsEnabled="{Binding IsLeaf}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="実績 (h)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox AutomationProperties.AutomationId="PropActual"
+                                         Text="{Binding ActualHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
+                                         Style="{StaticResource FieldBox}"
+                                         IsEnabled="{Binding IsLeaf}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="進捗 (%)" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding ProgressPercent, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
+                                 Style="{StaticResource FieldBox}"
+                                 IsEnabled="{Binding IsLeaf}"/>
+
+                        <TextBlock Text="担当者" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding Assignee, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource FieldBox}"/>
+
+                        <TextBlock Text="期限" Style="{StaticResource FieldLabel}"/>
+                        <DatePicker SelectedDate="{Binding DueDate, Converter={StaticResource DateOnlyConv}, UpdateSourceTrigger=PropertyChanged}"
+                                    Margin="0,0,0,8"/>
+
+                        <TextBlock Text="メモ" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource FieldBox}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 Height="140"
+                                 VerticalScrollBarVisibility="Auto"/>
+
+                        <!-- 集計セクション -->
+                        <Border BorderBrush="{DynamicResource SubtleDividerBrush}"
+                                BorderThickness="0,1,0,0"
+                                Margin="0,8,0,8"/>
+
+                        <TextBlock Text="集計 (子から)" Style="{StaticResource FieldLabel}"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="見積合計: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
+                                <Run Text="{Binding RolledUpEstimateHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
+                                <Run Text="h"/>
+                            </TextBlock>
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="実績合計: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Grid.Column="1" Foreground="{DynamicResource ControlDefaultForeground}">
+                                <Run Text="{Binding RolledUpActualHours, StringFormat={}{0:0.#}, Mode=OneWay}"/>
+                                <Run Text="h"/>
+                            </TextBlock>
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="進捗: " Foreground="{DynamicResource ControlSecondaryForeground}"/>
+                            <TextBlock Grid.Column="1"
+                                       Foreground="{DynamicResource ControlDefaultForeground}"
+                                       Text="{Binding RolledUpProgressPercent, StringFormat={}{0}%, TargetNullValue=--, Mode=OneWay}"/>
+                        </Grid>
+
+                        <!-- 砕き警告表示 -->
+                        <Border Margin="0,12,0,0"
+                                Padding="10"
+                                Background="{DynamicResource ControlDarkerBackground}"
+                                BorderBrush="{DynamicResource WarningGlyphForeground}"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Visibility="{Binding NeedsBreakdown, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⚠" FontSize="16"
+                                           Foreground="{DynamicResource WarningGlyphForeground}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Foreground="{DynamicResource ControlDefaultForeground}"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center">
+                                    <Run Text="このタスクは葉なのに見積 40h を超えてるっす。"/>
+                                    <LineBreak/>
+                                    <Run Text="もう少し砕けませんか？"
+                                         Foreground="{DynamicResource ControlSubtleForeground}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+        </Grid>
+    </DockPanel>
 </Window>
