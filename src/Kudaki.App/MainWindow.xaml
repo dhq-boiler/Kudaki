@@ -379,7 +379,9 @@
                                          Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource InlineTitleBox}"
                                          MinWidth="0"
-                                         HorizontalAlignment="Stretch"/>
+                                         HorizontalAlignment="Stretch"
+                                         PreviewMouseLeftButtonDown="TitleBox_PreviewMouseLeftButtonDown"
+                                         PreviewKeyDown="TitleBox_PreviewKeyDown"/>
 
                                 <!-- 階層レベルバッジ -->
                                 <Border Grid.Column="1"

@@ -165,6 +165,40 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         OnPropertyChanged(nameof(PredecessorCount));
     }
 
+    // UI 上「次に表示される」ノード (自分の visible な子孫の最初 → 次の兄弟 → 祖先の次の兄弟)。
+    // 末尾なら null。Home/End/Up/Down のツリーナビゲーションで参照する。
+    public TaskNodeViewModel? NextVisibleTask()
+    {
+        if (IsExpanded.Value && Children.Count > 0) return Children[0];
+        var node = this;
+        while (node.Parent != null)
+        {
+            var p = node.Parent;
+            var idx = p.Children.IndexOf(node);
+            if (idx >= 0 && idx + 1 < p.Children.Count) return p.Children[idx + 1];
+            node = p;
+        }
+        return null;
+    }
+
+    // UI 上「前に表示される」ノード (前の兄弟の visible な最終子孫 → 前の兄弟 → 親)。
+    // 先頭なら null (仮想ルート自身も対象外)。
+    public TaskNodeViewModel? PreviousVisibleTask()
+    {
+        if (Parent is null) return null;
+        var idx = Parent.Children.IndexOf(this);
+        if (idx > 0)
+        {
+            var cur = Parent.Children[idx - 1];
+            while (cur.IsExpanded.Value && cur.Children.Count > 0)
+            {
+                cur = cur.Children[cur.Children.Count - 1];
+            }
+            return cur;
+        }
+        return Parent.Parent is null ? null : Parent;
+    }
+
     // 仮想ルートまで登る。selfが仮想ルートなら self を返す (Parent==null で停止)。
     public TaskNodeViewModel RootVm
     {

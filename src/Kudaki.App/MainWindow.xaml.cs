@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Kudaki.App.Services;
 using Kudaki.App.ViewModels;
 
@@ -55,5 +56,57 @@ public partial class MainWindow : Window
             Vm.AddPredecessorToSelectedCommand.Execute(candidate);
             cb.SelectedItem = null;
         }
+    }
+
+    // ツリー行のタイトル TextBox をクリックしても親 TreeViewItem に click が届かず
+    // (TextBox が食う) 選択が変わらない WPF の既定挙動を補正する。Preview で先に
+    // TreeViewItem.IsSelected=true にしてから、TextBox にフォーカスは普通に渡す
+    // (Handled=false のまま) → 選択 + 編集開始が 1 クリックで両立する。
+    private void TitleBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not TextBox tb) return;
+        var tvi = FindAncestor<TreeViewItem>(tb);
+        if (tvi != null && !tvi.IsSelected)
+        {
+            tvi.IsSelected = true;
+        }
+    }
+
+    // 同じくタイトル TextBox がフォーカスを掴んでいる間、Up/Down/Home/End が
+    // TextBox 内キャレット移動として消費されてツリーナビゲーションが効かない。
+    // これらは VM 側の Select*Task コマンドに流して SelectedTask を直接動かす
+    // (Excel の「セル編集中でも矢印で移動する」相当)。
+    // Left/Right はキャレット移動として残す (単語単位の編集を潰さない)。
+    private void TitleBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Down:
+                Vm.SelectNextTaskCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Up:
+                Vm.SelectPreviousTaskCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Home:
+                Vm.SelectFirstTaskCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.End:
+                Vm.SelectLastTaskCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private static T? FindAncestor<T>(DependencyObject current) where T : DependencyObject
+    {
+        while (current != null)
+        {
+            if (current is T t) return t;
+            current = VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current);
+        }
+        return null;
     }
 }

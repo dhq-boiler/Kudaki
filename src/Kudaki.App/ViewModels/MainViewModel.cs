@@ -289,6 +289,41 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void MoveSelectedDown() => SelectedTask.Value?.MoveDownCommand.Execute(null);
 
+    // ----- キーボードナビゲーション (行内 TextBox にフォーカスがあると Up/Down/Home/End が
+    //       キャレット移動として消費されるので、View 側の PreviewKeyDown からここへ流す) -----
+
+    [RelayCommand]
+    private void SelectNextTask()
+    {
+        var next = SelectedTask.Value?.NextVisibleTask();
+        if (next != null) next.IsSelected.Value = true;
+    }
+
+    [RelayCommand]
+    private void SelectPreviousTask()
+    {
+        var prev = SelectedTask.Value?.PreviousVisibleTask();
+        if (prev != null) prev.IsSelected.Value = true;
+    }
+
+    [RelayCommand]
+    private void SelectFirstTask()
+    {
+        if (RootTasks.Count > 0) RootTasks[0].IsSelected.Value = true;
+    }
+
+    [RelayCommand]
+    private void SelectLastTask()
+    {
+        if (RootTasks.Count == 0) return;
+        var cur = RootTasks[RootTasks.Count - 1];
+        while (cur.IsExpanded.Value && cur.Children.Count > 0)
+        {
+            cur = cur.Children[cur.Children.Count - 1];
+        }
+        cur.IsSelected.Value = true;
+    }
+
     // ----- 依存関係編集 -----
 
     // SelectedTask に predecessor 追加。妥当性チェックを通ったものだけ追加。

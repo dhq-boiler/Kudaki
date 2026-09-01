@@ -23,7 +23,7 @@ public sealed class InstallerService
     public const string AppName = "Kudaki";
     public const string ProductName = "Kudaki";
     public const string PublisherName = "dhq_boiler";
-    public const string VersionString = "0.1.3";
+    public const string VersionString = "0.1.4";
 
     // Kudaki.App の実行 EXE 名 (Kudaki.App.csproj で AssemblyName=Kudaki 指定)。
     public const string TargetExeName = "Kudaki.exe";
