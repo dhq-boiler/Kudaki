@@ -74,9 +74,23 @@ Internal (parent) nodes aggregate the estimates and remainings of their leaves. 
 
 If a leaf task has an estimate greater than 40 hours, Kudaki marks it with a warning glyph and a note saying it is still too large to plan reliably. This threshold is fixed in v0.1 and will be configurable later.
 
+### Task dependencies
+
+Any task can declare predecessor tasks — tasks that must complete before this one starts. Semantics are Finish-to-Start only: `X -> Y` means every leaf under `X` must complete before any leaf under `Y` can start. Predecessors may sit at any level of the tree, including internal (parent) nodes.
+
+To add a predecessor, select a task and pick one from the "Predecessor tasks" dropdown in the detail pane. Current predecessors are shown as pill chips with an `x` to remove them. Cycles and ancestor/descendant edges are rejected. Indenting or outdenting a task auto-removes any predecessor that would become illegal after the move.
+
+### Arrow diagram
+
+Right-click a parent task in the tree and pick "Show arrow diagram" to open a per-parent Activity-on-Node view. Nodes are laid out with a Kahn topological sort; only edges internal to the current parent scope are drawn. A lightning bolt marker on a child indicates that child has an inbound predecessor from outside the current parent.
+
+A small demo file exercising cross-phase dependencies is in [`docs/deps-demo.wbs.yaml`](docs/deps-demo.wbs.yaml).
+
 ## File format
 
-Documents are saved as YAML with the extension `.wbs.yaml`. The format is versioned (`version: 2` in the current release) and is designed to be human-readable, diff-friendly, and easy for tools (including AI agents) to produce or consume. A worked example is in [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml).
+Documents are saved as YAML with the extension `.wbs.yaml`. The format is versioned (`version: 3` in the current release) and is designed to be human-readable, diff-friendly, and easy for tools (including AI agents) to produce or consume. A worked example is in [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml).
+
+Version 3 adds `predecessorIds` on each task. Files saved by v0.1.2 or older (`version: 2`) load unchanged; files saved by v0.1.3 or newer will not load in older releases.
 
 A Markdown export exists for sharing on GitHub or in documentation. It uses task-list syntax (`- [ ]` / `- [x]`) and preserves rolled-up totals and the breakdown warning. See [`docs/v02-plan.md`](docs/v02-plan.md) for a rendered example.
 
