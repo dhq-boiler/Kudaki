@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -12,9 +13,18 @@ namespace Kudaki.App;
 
 public partial class App : Application
 {
+    // シングルトンインスタンス化のための IPC 識別子。
+    // Local\ プレフィックスで同一ユーザーセッション内のみ排他。
+    private const string SingleInstanceMutexName = @"Local\Kudaki.SingleInstance";
+    private const string SingleInstancePipeName = "Kudaki.Instance";
+
     // Kudaki プロセス内で走る MCP サーバー (Streamable HTTP stateless)。
     // 起動は OnStartup 内で fire-and-forget、停止は OnExit で待って落とす。
     private McpHostService? _mcpHost;
+
+    // シングルトン化 Coordinator。1 個目は Pipe server を張って、
+    // 2 個目からの「開くファイル」や「アクティブ化」要求を受け取る。
+    private SingleInstanceCoordinator? _singleInstance;
 
     // 表示言語サービス。起動時に settings.json をロードして
     // DefaultThreadCurrentUICulture を当てるため、MainWindow ctor より前に Initialize する。
@@ -23,6 +33,21 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // シングルトン化: 2 個目以降は 1 個目に arg を forward して自身は即座に終了。
+        // Mutex 取得に成功したプロセスだけが「本物」として先に進む。
+        _singleInstance = new SingleInstanceCoordinator(SingleInstanceMutexName, SingleInstancePipeName);
+        if (!_singleInstance.TryAcquire())
+        {
+            var message = (e.Args.Length > 0 && File.Exists(e.Args[0]))
+                ? $"open {Path.GetFullPath(e.Args[0])}"
+                : "activate";
+            _singleInstance.TryForward(message, TimeSpan.FromSeconds(5));
+            _singleInstance.Dispose();
+            _singleInstance = null;
+            Shutdown(0);
+            return;
+        }
+
         // 表示言語を確定。以降に生成される WPF Window / TextBlock の
         // resx 参照はこの culture で解決される。
         LanguageService.Initialize();
@@ -33,6 +58,11 @@ public partial class App : Application
             ex => Debug.WriteLine($"[R3] unhandled: {ex}"));
 
         base.OnStartup(e);
+
+        // MainWindow が作られたので Pipe server を張って 2 個目以降の要求を待つ。
+        // ここより前だと OnSingleInstanceMessage が MainWindow null で発火し得るので、
+        // base.OnStartup 後 (= MainWindow ctor 完了後) に開始する。
+        _singleInstance.StartServer(OnSingleInstanceMessage);
 
         var hasStartupFile = e.Args.Length > 0 && File.Exists(e.Args[0]);
 
@@ -85,13 +115,58 @@ public partial class App : Application
         try
         {
             var stop = _mcpHost?.StopAsync();
-            stop?.Wait(System.TimeSpan.FromSeconds(3));
+            stop?.Wait(TimeSpan.FromSeconds(3));
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             Debug.WriteLine($"[Kudaki.Mcp] stop failed: {ex}");
         }
+
+        // シングルトン Coordinator を解放 (Pipe server 停止 + Mutex release)。
+        try { _singleInstance?.Dispose(); }
+        catch (Exception ex) { Debug.WriteLine($"[Kudaki.SingleInstance] dispose failed: {ex}"); }
+        _singleInstance = null;
+
         base.OnExit(e);
+    }
+
+    // Pipe server で受信した 2 個目以降の要求を UI thread に marshal して処理する。
+    // プロトコル:
+    //   "open <absolute-path>"  該当ファイルを開く (現状は単一ドキュメントで置き換え、
+    //                            マルチドキュメント UI 実装後は新規タブとして開く)
+    //   "activate"               何も開かず前面化のみ
+    private void OnSingleInstanceMessage(string message)
+    {
+        Dispatcher.BeginInvoke(new System.Action(async () =>
+        {
+            BringMainWindowToFront();
+
+            const string openPrefix = "open ";
+            if (message.StartsWith(openPrefix, StringComparison.Ordinal))
+            {
+                var path = message.Substring(openPrefix.Length);
+                if (File.Exists(path) && MainWindow?.DataContext is MainViewModel vm)
+                {
+                    await vm.LoadFromPathAsync(path).ConfigureAwait(true);
+                }
+            }
+        }));
+    }
+
+    // MainWindow を最前面に強制する。最小化されていれば通常状態に戻す。
+    // Activate だけだと他アプリからフォアグラウンド奪取が失敗するケースがあるので、
+    // Topmost の一瞬 ON/OFF トリックで確実に前に出す (SetForegroundWindow の代替)。
+    private void BringMainWindowToFront()
+    {
+        if (MainWindow is null) return;
+        if (MainWindow.WindowState == WindowState.Minimized)
+        {
+            MainWindow.WindowState = WindowState.Normal;
+        }
+        MainWindow.Activate();
+        MainWindow.Topmost = true;
+        MainWindow.Topmost = false;
+        MainWindow.Focus();
     }
 
     // MCP 起動 Task が MainWindow ctor (MainViewModel.Current 設定) より先に完了する race を吸収。
