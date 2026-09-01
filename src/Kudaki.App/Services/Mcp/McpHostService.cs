@@ -30,6 +30,16 @@ public sealed class McpHostService
     {
         if (_app is not null) return;
 
+        // Kestrel は port 衝突時に「Failed to bind」を投げるが、環境によっては起動が
+        // 数秒 hang したり、内部で握られて呼び出し元まで伝わらないことがある。
+        // 先に TcpListener で明示的に検査して、衝突時は即例外にする。
+        // (シングルトン化前の防波堤; B ルート実装後も別ソフトによる占有ケースで役立つ)
+        if (!IsPortAvailable(port))
+        {
+            throw new InvalidOperationException(
+                $"MCP port {port} is already in use. Another Kudaki instance (or another program) may be listening.");
+        }
+
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             // WPF が Environment.CurrentDirectory を弄る可能性を回避
@@ -84,6 +94,21 @@ public sealed class McpHostService
             _app = null;
             _lifetimeCts = null;
             Port = 0;
+        }
+    }
+
+    private static bool IsPortAvailable(int port)
+    {
+        try
+        {
+            var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+            listener.Start();
+            listener.Stop();
+            return true;
+        }
+        catch (System.Net.Sockets.SocketException)
+        {
+            return false;
         }
     }
 }

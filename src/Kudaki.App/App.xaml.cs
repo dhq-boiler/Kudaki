@@ -46,20 +46,20 @@ public partial class App : Application
             {
                 await _mcpHost.StartAsync().ConfigureAwait(false);
                 Debug.WriteLine($"[Kudaki.Mcp] listening on {_mcpHost.EndpointUrl}");
-                MainViewModel.Current?.ReportLoading(75, Strings.Landing_Status_McpStarted);
+                await ReportLoadingSafelyAsync(75, Strings.Landing_Status_McpStarted).ConfigureAwait(false);
 
                 if (!hasStartupFile)
                 {
                     // Landing を一瞬見せる余韻。ロードするものが何もないので短めで閉じる。
                     await Task.Delay(200).ConfigureAwait(false);
-                    MainViewModel.Current?.ReportLoading(100, Strings.Landing_Status_Ready);
+                    await ReportLoadingSafelyAsync(100, Strings.Landing_Status_Ready).ConfigureAwait(false);
                 }
             }
             catch (System.Exception ex)
             {
                 Debug.WriteLine($"[Kudaki.Mcp] failed to start: {ex}");
                 // 起動失敗しても Landing は閉じないと UI が使えないので閉じる。
-                MainViewModel.Current?.ReportLoading(100, Strings.Landing_Status_McpFailed);
+                await ReportLoadingSafelyAsync(100, Strings.Landing_Status_McpFailed).ConfigureAwait(false);
             }
         });
 
@@ -92,6 +92,24 @@ public partial class App : Application
             Debug.WriteLine($"[Kudaki.Mcp] stop failed: {ex}");
         }
         base.OnExit(e);
+    }
+
+    // MCP 起動 Task が MainWindow ctor (MainViewModel.Current 設定) より先に完了する race を吸収。
+    // UI thread で MainViewModel.Current が用意できるまで最大 5 秒待って ReportLoading する。
+    // これがないと MCP 起動失敗時に Landing が閉じず、Kudaki の 2 個目起動でスプラッシュ hang していた。
+    private Task ReportLoadingSafelyAsync(int percent, string status)
+    {
+        var tcs = new TaskCompletionSource();
+        Dispatcher.BeginInvoke(new System.Action(async () =>
+        {
+            for (var i = 0; i < 50 && MainViewModel.Current is null; i++)
+            {
+                await Task.Delay(100).ConfigureAwait(true);
+            }
+            MainViewModel.Current?.ReportLoading(percent, status);
+            tcs.SetResult();
+        }));
+        return tcs.Task;
     }
 
     // MainWindow の InitializeComponent 後に呼ぶ。GitHub API を fire-and-forget。
