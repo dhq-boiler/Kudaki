@@ -123,11 +123,14 @@
                 <Button x:Name="SaveAsButton"
                         Content="名前を付けて保存... (Ctrl+Shift+S)"
                         Style="{StaticResource ToolbarButton}"/>
+                <Button x:Name="ExportMarkdownButton"
+                        Content="Markdown 出力... (Ctrl+E)"
+                        Style="{StaticResource ToolbarButton}"/>
                 <Separator Margin="8,0" Background="{DynamicResource SubtleDividerBrush}" Width="1"/>
                 <TextBlock VerticalAlignment="Center"
                            Foreground="{DynamicResource ControlSubtleForeground}"
                            FontSize="11"
-                           Text="Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除"/>
+                           Text="Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除  Ctrl+E=Markdown"/>
             </StackPanel>
         </Border>
 

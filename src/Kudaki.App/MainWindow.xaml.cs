@@ -16,6 +16,7 @@ public partial class MainWindow : Window
         OpenButton.Click += async (_, _) => await OpenFileAsync();
         SaveButton.Click += async (_, _) => await SaveAsync();
         SaveAsButton.Click += async (_, _) => await SaveAsAsync();
+        ExportMarkdownButton.Click += async (_, _) => await ExportMarkdownAsync();
 
         // ファイル系のショートカット (Tree にフォーカスがあっても撃てるように Window スコープ)
         InputBindings.Add(new KeyBinding(
@@ -27,6 +28,9 @@ public partial class MainWindow : Window
         InputBindings.Add(new KeyBinding(
             new RelayFileCommand(async () => await SaveAsAsync()),
             new KeyGesture(Key.S, ModifierKeys.Control | ModifierKeys.Shift)));
+        InputBindings.Add(new KeyBinding(
+            new RelayFileCommand(async () => await ExportMarkdownAsync()),
+            new KeyGesture(Key.E, ModifierKeys.Control)));
     }
 
     private MainViewModel Vm => (MainViewModel)DataContext;
@@ -71,6 +75,20 @@ public partial class MainWindow : Window
         };
         if (dlg.ShowDialog(this) != true) return;
         await Vm.SaveToPathAsync(dlg.FileName);
+    }
+
+    private async System.Threading.Tasks.Task ExportMarkdownAsync()
+    {
+        var dlg = new SaveFileDialog
+        {
+            Filter = MarkdownExportService.SaveFilter,
+            Title = "Markdown エクスポート",
+            DefaultExt = MarkdownExportService.PrimaryExtension,
+            AddExtension = true,
+            FileName = Vm.SuggestedMarkdownFileName()
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        await Vm.ExportMarkdownAsync(dlg.FileName);
     }
 }
 

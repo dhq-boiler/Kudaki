@@ -11,6 +11,7 @@ namespace Kudaki.App.ViewModels;
 public sealed partial class MainViewModel : ObservableObject
 {
     private readonly YamlStorageService _storage = new();
+    private readonly MarkdownExportService _markdown = new();
     private WbsDocument _document = null!;
     private TaskNodeViewModel _rootVm = null!;
     private string? _currentFilePath;
@@ -102,6 +103,32 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     internal bool HasCurrentFilePath => _currentFilePath is not null;
+
+    internal async Task<bool> ExportMarkdownAsync(string path)
+    {
+        try
+        {
+            await _markdown.ExportAsync(_document, path).ConfigureAwait(true);
+            StatusMessage = $"Markdown エクスポートしました: {System.IO.Path.GetFileName(path)}";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Markdown エクスポート失敗: {ex.Message}";
+            return false;
+        }
+    }
+
+    // 現在ファイルパスから Markdown 出力の推奨ファイル名を生成
+    internal string SuggestedMarkdownFileName()
+    {
+        if (_currentFilePath is null) return "untitled.md";
+        var name = System.IO.Path.GetFileName(_currentFilePath);
+        // .wbs.yaml → .md、.yaml → .md、それ以外は拡張子差し替え
+        if (name.EndsWith(".wbs.yaml", StringComparison.OrdinalIgnoreCase))
+            return name[..^".wbs.yaml".Length] + ".md";
+        return System.IO.Path.ChangeExtension(name, ".md");
+    }
 
     [RelayCommand]
     private void NewDocument()
