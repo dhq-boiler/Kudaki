@@ -57,6 +57,24 @@ public sealed partial class MainViewModel : ObservableObject
     internal string? CurrentFilePath => _currentFilePath;
     internal bool HasCurrentFilePath => _currentFilePath is not null;
 
+    // MCP サーバー (Kudaki.App プロセス内) が現在の VM を掴むための単純ブリッジ。
+    // MVVM 純粋派の静的シングルトンは避けたいが、DI コンテナを持たない Kudaki では
+    // 「Kudaki プロセスに MainViewModel は常に1個」を活用してこれで足りる。
+    // MainWindow の ctor から一度だけセットする。
+    public static MainViewModel? Current { get; internal set; }
+
+    // MCP get_document 用: 現在の Document を YAML スナップショットとして返す。
+    // Kestrel の別スレッドから呼ばれる想定なので UI スレッドに戻して serialize する。
+    public string GetDocumentYamlSnapshot()
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess())
+        {
+            return _storage.SerializeToString(_document);
+        }
+        return dispatcher.Invoke(() => _storage.SerializeToString(_document));
+    }
+
     internal void LoadDocument(WbsDocument document)
     {
         _document = document;

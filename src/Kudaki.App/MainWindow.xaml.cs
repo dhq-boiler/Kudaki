@@ -26,6 +26,7 @@ public partial class MainWindow : Window
             new WpfUpdatePromptService(this));
         vm.SetArrowDiagramService(new WpfArrowDiagramService(this));
         DataContext = vm;
+        MainViewModel.Current = vm;
 
         CommandBindings.Add(new CommandBinding(
             SystemCommands.MinimizeWindowCommand, (_, _) => SystemCommands.MinimizeWindow(this)));

@@ -9,10 +9,15 @@ tasks:
   - id: t-arch
     title: アーキテクチャ確定 (in-process HTTP vs stdio 別プロセス)
     estimateHours: 4
+    remainingHours: 0
     notes: |
-      project-mcp-roadmap の方針: HTTP/SSE を推奨、Kestrel in-process ホスト。
-      stdio 別プロセス案は配線が倍になるので却下したが、
-      Claude Desktop 側の対応状況で再検討の余地はある。
+      確定 (2026-09-01):
+      - Transport: Streamable HTTP (stateless モード)。MCP 2025 仕様の最新。
+        従来 SSE と違い session を持たないので、propose_changes の
+        承認 await は 1 リクエスト内の TaskCompletionSource で完結する。
+      - Host: Kudaki.App プロセス内で ASP.NET Core Kestrel を起こす。
+      - Library: ModelContextProtocol.AspNetCore 2.2.0
+        (.WithHttpTransport(o => o.Stateless = true))
   - id: t-tools
     title: MCP ツール定義 (get_document / propose_changes / get_pending_summary)
     estimateHours: 3
@@ -32,22 +37,45 @@ tasks:
   - id: t-nuget
     title: ModelContextProtocol NuGet 導入 と依存追加
     estimateHours: 1
+    remainingHours: 0
+    notes: 2026-09-01 完了 (ModelContextProtocol.AspNetCore 2.2.0)。
   - id: t-kestrel
     title: Kestrel in-process ホスト起動 (localhost 任意ポート)
     estimateHours: 4
-    notes: WPF プロセス内で ASP.NET Core を起こす。UI スレッドと干渉しない構成に。
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。
+      - WPF プロセスから ASP.NET Core を使うには FrameworkReference
+        Microsoft.AspNetCore.App が必要 (パッケージだけだと Kestrel 拡張が見えない)。
+      - builder.WebHost.UseUrls("http://localhost:27650") で固定ポート。
+      - MapMcp("/mcp") で /mcp エンドポイントに公開。
   - id: t-lifecycle
     title: サーバー起動/停止のライフサイクル管理 (App.OnStartup / OnExit)
     estimateHours: 2
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。OnStartup で Task.Run による fire-and-forget 起動、
+      OnExit で StopAsync().GetAwaiter().GetResult() で同期待ち停止。
   - id: t-registration
     title: MCP tool 登録の骨組み
     estimateHours: 3
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。.WithHttpTransport(o => o.Stateless = true) + .WithToolsFromAssembly()
+      で Kudaki.App アセンブリ内の [McpServerToolType] 属性クラスを自動発見。
 - id: sec-tools
   title: MCP ツール実装
   children:
   - id: t-get-doc
     title: get_document ツール (読取専用、現在の WbsDocument を返す)
     estimateHours: 2
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。MainViewModel.Current (static bridge) を経由して
+      現在の WbsDocument を YamlStorageService.SerializeToString で YAML 化。
+      Kestrel の別スレッドから呼ばれるので Application.Current.Dispatcher.Invoke で
+      UI スレッドに戻して snapshot する。動作確認: deps-demo.wbs.yaml の全ツリー
+      が MCP tools/call レスポンスで JSON 経由で返ってくることを確認済み。
   - id: t-propose
     title: propose_changes ツール (提案受付 + 承認/却下を await して返す)
     estimateHours: 6

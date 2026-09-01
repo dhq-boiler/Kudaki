@@ -48,10 +48,17 @@ public sealed class YamlStorageService
             .Build();
     }
 
+    // in-memory シリアライズ。MCP の get_document から現在の Document スナップショットを
+    // 取り出すときにも使うので public に。ファイル保存とは違い ModifiedAt を触らない。
+    public string SerializeToString(WbsDocument document)
+    {
+        return _serializer.Serialize(document);
+    }
+
     public async Task SaveAsync(WbsDocument document, string path, CancellationToken ct = default)
     {
         document.ModifiedAt = DateTime.UtcNow;
-        var yaml = _serializer.Serialize(document);
+        var yaml = SerializeToString(document);
 
         // UTF-8 without BOM が YAML の慣例。
         await File.WriteAllTextAsync(path, yaml, new UTF8Encoding(false), ct).ConfigureAwait(false);
