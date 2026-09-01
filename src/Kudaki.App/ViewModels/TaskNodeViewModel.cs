@@ -36,6 +36,12 @@ public sealed partial class TaskNodeViewModel : ObservableObject
 
     public TaskNodeViewModel? Parent { get; internal set; }
 
+    // 階層レベル (1-indexed)。top-level = 1、その子 = 2、...
+    // 仮想ルート (Parent==null または Parent.Parent==null) の下がレベル 1。
+    // Indent/Outdent で Parent が変わったときは OnChildrenCollectionChanged
+    // 経由で NotifyDepthChanged が呼ばれ、子孫まで再評価される。
+    public int Depth => (Parent is null || Parent.Parent is null) ? 1 : Parent.Depth + 1;
+
     public string Id => _model.Id;
 
     public string Title
@@ -132,10 +138,21 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         foreach (var vm in Children)
         {
             vm.Parent = this;
+            vm.NotifyDepthChanged();
             _model.Children.Add(vm._model);
         }
         OnPropertyChanged(nameof(IsLeaf));
         NotifyRollupChanged();
+    }
+
+    // 自分と全子孫の Depth を再通知 (Indent/Outdent 後の親付け替えで使う)。
+    private void NotifyDepthChanged()
+    {
+        OnPropertyChanged(nameof(Depth));
+        foreach (var child in Children)
+        {
+            child.NotifyDepthChanged();
+        }
     }
 
     // 自分と全先祖の rolled-up 系プロパティを再評価させる。

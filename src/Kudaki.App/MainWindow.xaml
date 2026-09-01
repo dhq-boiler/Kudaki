@@ -181,12 +181,13 @@
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type vm:TaskNodeViewModel}"
                                                    ItemsSource="{Binding Children}">
-                            <!-- Grid で 5 列。* の Title が伸縮を吸収して、
-                                 右側の数値列 (進捗% / バー / 時間 / 警告) は
+                            <!-- Grid で 6 列。* の Title が伸縮を吸収して、
+                                 右側の 階層L / 進捗% / バー / 時間 / 警告 は
                                  階層深さに関係なくツリー右端に揃う。 -->
                             <Grid HorizontalAlignment="Stretch">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="80"/>
+                                    <ColumnDefinition Width="28"/>
                                     <ColumnDefinition Width="44"/>
                                     <ColumnDefinition Width="88"/>
                                     <ColumnDefinition Width="60"/>
@@ -199,15 +200,33 @@
                                          MinWidth="0"
                                          HorizontalAlignment="Stretch"/>
 
+                                <!-- 階層レベルバッジ -->
+                                <Border Grid.Column="1"
+                                        Background="{DynamicResource ControlDarkerBackground}"
+                                        BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="3"
+                                        Padding="4,1"
+                                        Margin="0,0,4,0"
+                                        Height="16"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        ToolTip="階層レベル">
+                                    <TextBlock Text="{Binding Depth, StringFormat=L{0}}"
+                                               Foreground="{DynamicResource ControlSubtleForeground}"
+                                               FontSize="10"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+
                                 <!-- 進捗% -->
-                                <TextBlock Grid.Column="1"
+                                <TextBlock Grid.Column="2"
                                            Text="{Binding RolledUpProgressPercent, StringFormat={}{0}%, TargetNullValue=--}"
                                            TextAlignment="Right"
                                            Foreground="{DynamicResource ControlSubtleForeground}"
                                            VerticalAlignment="Center"/>
 
                                 <!-- 進捗バー -->
-                                <ProgressBar Grid.Column="2"
+                                <ProgressBar Grid.Column="3"
                                              Width="80" Height="6"
                                              Margin="4,0,4,0"
                                              VerticalAlignment="Center"
@@ -219,7 +238,7 @@
                                              Foreground="{DynamicResource PrimaryDefaultBackground}"/>
 
                                 <!-- 見積時間 (rolled-up) -->
-                                <TextBlock Grid.Column="3"
+                                <TextBlock Grid.Column="4"
                                            TextAlignment="Right"
                                            Foreground="{DynamicResource ControlSubtleForeground}"
                                            VerticalAlignment="Center">
@@ -228,7 +247,7 @@
                                 </TextBlock>
 
                                 <!-- 砕き警告 -->
-                                <TextBlock Grid.Column="4"
+                                <TextBlock Grid.Column="5"
                                            Text="⚠"
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Center"
