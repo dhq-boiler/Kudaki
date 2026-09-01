@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2">
 
     <!--  WPF デフォルトスタイルは Windows ライトテーマ前提なので、
           Kudaki のダーク固定パレットに合うように主要コントロールを retemplate する。
@@ -219,6 +220,231 @@
         <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+    </Style>
+
+    <!--  =========================================================
+          Menu / MenuItem / Separator
+          - Kata の DarkTheme.xaml と同じ構造 (Kata-inspired, VARA 系)
+          - Menu 本体は透明、タイトルバーに載せる前提
+          - Role ごとに Template 差替: TopLevelHeader / SubmenuHeader / SubmenuItem
+          - Popup は SystemDropShadowChrome で影付き
+          ========================================================= -->
+
+    <!-- Menu 本体 -->
+    <Style TargetType="{x:Type Menu}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Menu}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ItemsPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Menu 内の Separator -->
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}">
+        <Setter Property="Background" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Margin" Value="24,4,4,4"/>
+    </Style>
+
+    <!-- TopLevel の MenuItem (Menu バーの直下) -->
+    <ControlTemplate x:Key="TopLevelMenuItemTemplate" TargetType="{x:Type MenuItem}">
+        <Border x:Name="root"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                Padding="{TemplateBinding Padding}"
+                CornerRadius="3"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <ContentPresenter x:Name="content"
+                                  ContentSource="Header"
+                                  RecognizesAccessKey="True"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                <Popup x:Name="PART_Popup"
+                       AllowsTransparency="True"
+                       Focusable="False"
+                       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                       Placement="Bottom"
+                       PopupAnimation="Fade">
+                    <themes:SystemDropShadowChrome Name="Shdw" Margin="0,0,5,5" Color="#71000000" CornerRadius="0">
+                        <Border Background="{DynamicResource ControlDefaultBackground}"
+                                BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
+                                BorderThickness="1"
+                                Padding="0,2">
+                            <ItemsPresenter Grid.IsSharedSizeScope="True"/>
+                        </Border>
+                    </themes:SystemDropShadowChrome>
+                </Popup>
+            </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="root" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+            </Trigger>
+            <Trigger Property="IsSubmenuOpen" Value="True">
+                <Setter TargetName="root" Property="Background" Value="{DynamicResource ControlSelectedBackground}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- 通常のドロップダウン内 MenuItem (Icon | Header | Gesture | Arrow) -->
+    <ControlTemplate x:Key="SubmenuMenuItemTemplate" TargetType="{x:Type MenuItem}">
+        <Border x:Name="root"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                SnapsToDevicePixels="True">
+            <Grid Margin="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="22" SharedSizeGroup="MenuItemIconGroup"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemGestureGroup"/>
+                    <ColumnDefinition Width="20"/>
+                </Grid.ColumnDefinitions>
+                <ContentPresenter x:Name="Icon" Width="16" Height="16" Margin="4"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Content="{TemplateBinding Icon}" ContentSource="Icon"/>
+                <ContentPresenter Grid.Column="1"
+                                  Margin="6,4,10,4"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center"
+                                  Content="{TemplateBinding Header}" ContentSource="Header"
+                                  RecognizesAccessKey="True"/>
+                <TextBlock Grid.Column="2"
+                           Margin="8,4"
+                           VerticalAlignment="Center"
+                           Opacity="0.6"
+                           Text="{TemplateBinding InputGestureText}"/>
+                <Path x:Name="RightArrow" Grid.Column="3"
+                      Margin="6,0,4,0"
+                      HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Data="M0,0L4,3.5 0,7z"
+                      Fill="{DynamicResource ControlSecondaryForeground}"
+                      Visibility="Collapsed"/>
+                <Popup x:Name="PART_Popup"
+                       AllowsTransparency="True"
+                       Focusable="False"
+                       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                       Placement="Right"
+                       PopupAnimation="Fade"
+                       HorizontalOffset="-2"
+                       VerticalOffset="-3">
+                    <themes:SystemDropShadowChrome Margin="0,0,5,5" Color="#71000000" CornerRadius="0">
+                        <Border Background="{DynamicResource ControlDefaultBackground}"
+                                BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
+                                BorderThickness="1"
+                                Padding="0,2">
+                            <ItemsPresenter Grid.IsSharedSizeScope="True"/>
+                        </Border>
+                    </themes:SystemDropShadowChrome>
+                </Popup>
+            </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="Icon" Value="{x:Null}">
+                <Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/>
+            </Trigger>
+            <Trigger Property="Role" Value="SubmenuHeader">
+                <Setter TargetName="RightArrow" Property="Visibility" Value="Visible"/>
+            </Trigger>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="root" Property="Background" Value="{DynamicResource ControlSelectedBackground}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Role で Template を切替 -->
+    <Style TargetType="{x:Type MenuItem}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Style.Triggers>
+            <Trigger Property="Role" Value="TopLevelHeader">
+                <Setter Property="Template" Value="{StaticResource TopLevelMenuItemTemplate}"/>
+            </Trigger>
+            <Trigger Property="Role" Value="TopLevelItem">
+                <Setter Property="Template" Value="{StaticResource TopLevelMenuItemTemplate}"/>
+            </Trigger>
+            <Trigger Property="Role" Value="SubmenuHeader">
+                <Setter Property="Template" Value="{StaticResource SubmenuMenuItemTemplate}"/>
+                <Setter Property="Padding" Value="0"/>
+            </Trigger>
+            <Trigger Property="Role" Value="SubmenuItem">
+                <Setter Property="Template" Value="{StaticResource SubmenuMenuItemTemplate}"/>
+                <Setter Property="Padding" Value="0"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--  =========================================================
+          Window control buttons (min / max / close)
+          - WindowChrome の CaptionHeight 領域に載せるフラットボタン
+          - Close だけ hover で赤
+          ========================================================= -->
+
+    <Style x:Key="CaptionButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            </Trigger>
+        </Style.Triggers>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="#FFE81123"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

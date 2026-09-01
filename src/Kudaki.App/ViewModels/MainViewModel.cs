@@ -138,6 +138,20 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenRepository()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("https://github.com/dhq-boiler/Kudaki")
+                {
+                    UseShellExecute = true
+                });
+        }
+        catch { }
+    }
+
+    [RelayCommand]
     private void OpenReleasePage()
     {
         var url = AvailableUpdate.Value?.HtmlUrl;

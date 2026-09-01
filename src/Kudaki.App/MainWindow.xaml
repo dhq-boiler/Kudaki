@@ -17,9 +17,26 @@
         FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        BorderBrush="{DynamicResource WindowBorderColour}"
+        BorderThickness="1"
         FocusManager.FocusedElement="{Binding ElementName=Tree}"
-        behaviors:FileDropBehavior.Command="{Binding LoadFromPathAsyncCommand}"
+        behaviors:FileDropBehavior.Command="{Binding LoadFromPathCommand}"
         behaviors:FileDropBehavior.Extensions=".wbs.yaml,.yaml,.yml">
+
+    <WindowChrome.WindowChrome>
+        <!-- CaptionHeight = 32: 上端 32px を「タイトルバー扱い」にする。
+             ResizeBorderThickness = 5: ウィンドウ端 5px をリサイズ hit test に。
+             GlassFrameThickness = 0 で Aero ガラス無効化。
+             UseAeroCaptionButtons = False で Windows のキャプションボタンを描画しない
+             (Kudaki 自前のボタンを使う)。 -->
+        <WindowChrome CaptionHeight="32"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"
+                      UseAeroCaptionButtons="False"
+                      CornerRadius="0"/>
+    </WindowChrome.WindowChrome>
 
     <!-- DataContext は code-behind で IFileDialogService を注入して生成した
          MainViewModel を挿す (MVVM 純度確保のため XAML では新規生成しない)。 -->
@@ -91,12 +108,14 @@
     </Window.Resources>
 
     <Window.InputBindings>
-        <!-- ファイル操作は Window スコープで完結。全部 VM のコマンドに直接バインド。 -->
+        <!-- ファイル操作は Window スコープで完結。全部 VM のコマンドに直接バインド。
+             CommunityToolkit.Mvvm は [RelayCommand] on *Async メソッドから Async サフィックスを
+             落とした名前でコマンドを生成する (OpenAsync → OpenCommand)。 -->
         <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewDocumentCommand}"/>
-        <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenAsyncCommand}"/>
-        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveAsyncCommand}"/>
-        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveAsAsyncCommand}"/>
-        <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding ExportMarkdownAsyncCommand}"/>
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenCommand}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveCommand}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveAsCommand}"/>
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding ExportMarkdownCommand}"/>
 
         <!-- Enter / Alt+Enter は Window スコープにも配置 (Excel 的な「コミット→次行」)。
              複数行 TextBox (メモ, AcceptsReturn=True) は Enter を消費するので影響なし。
@@ -107,35 +126,170 @@
 
     <DockPanel>
 
-        <!-- ==================== 上部ツールバー ==================== -->
-        <Border DockPanel.Dock="Top"
-                Background="{DynamicResource WindowTitleColour}"
-                BorderBrush="{DynamicResource SubtleDividerBrush}"
-                BorderThickness="0,0,0,1"
-                Padding="8,4">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="新規 (Ctrl+N)"
-                        Command="{Binding NewDocumentCommand}"
-                        Style="{StaticResource ToolbarButton}"/>
-                <Button Content="開く... (Ctrl+O)"
-                        Command="{Binding OpenAsyncCommand}"
-                        Style="{StaticResource ToolbarButton}"/>
-                <Button Content="保存 (Ctrl+S)"
-                        Command="{Binding SaveAsyncCommand}"
-                        Style="{StaticResource ToolbarButton}"/>
-                <Button Content="名前を付けて保存... (Ctrl+Shift+S)"
-                        Command="{Binding SaveAsAsyncCommand}"
-                        Style="{StaticResource ToolbarButton}"/>
-                <Button Content="Markdown 出力... (Ctrl+E)"
-                        Command="{Binding ExportMarkdownAsyncCommand}"
-                        Style="{StaticResource ToolbarButton}"/>
-                <Separator Margin="8,0" Background="{DynamicResource SubtleDividerBrush}" Width="1"/>
-                <TextBlock VerticalAlignment="Center"
-                           Foreground="{DynamicResource ControlSubtleForeground}"
-                           FontSize="11"
-                           Text="Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除  Ctrl+E=Markdown"/>
+        <!-- ==================== WindowChrome カスタムタイトルバー ==================== -->
+        <Grid DockPanel.Dock="Top"
+              Height="32"
+              Background="{DynamicResource WindowTitleColour}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- タイトル -->
+                <ColumnDefinition Width="Auto"/> <!-- Menu -->
+                <ColumnDefinition Width="*"/>    <!-- ドラッグ領域 + 中央ファイル名 -->
+                <ColumnDefinition Width="Auto"/> <!-- 更新通知 -->
+                <ColumnDefinition Width="Auto"/> <!-- min/max/close -->
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="Kudaki"
+                       Margin="12,0,4,0"
+                       VerticalAlignment="Center"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource ControlDefaultForeground}"/>
+
+            <!-- Menu 本体。WindowChrome.IsHitTestVisibleInChrome=True を立てないと
+                 CaptionHeight のドラッグ領域に食われてクリックが通らない。 -->
+            <Menu Grid.Column="1"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Stretch"
+                  WindowChrome.IsHitTestVisibleInChrome="True">
+                <MenuItem Header="ファイル(_F)">
+                    <MenuItem Header="新規(_N)"
+                              InputGestureText="Ctrl+N"
+                              Command="{Binding NewDocumentCommand}"/>
+                    <MenuItem Header="開く(_O)..."
+                              InputGestureText="Ctrl+O"
+                              Command="{Binding OpenCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="上書き保存(_S)"
+                              InputGestureText="Ctrl+S"
+                              Command="{Binding SaveCommand}"/>
+                    <MenuItem Header="名前を付けて保存(_A)..."
+                              InputGestureText="Ctrl+Shift+S"
+                              Command="{Binding SaveAsCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Markdown 出力(_E)..."
+                              InputGestureText="Ctrl+E"
+                              Command="{Binding ExportMarkdownCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="終了(_X)"
+                              InputGestureText="Alt+F4"
+                              Command="{x:Static SystemCommands.CloseWindowCommand}"/>
+                </MenuItem>
+                <MenuItem Header="編集(_E)">
+                    <MenuItem Header="同階層に追加"
+                              InputGestureText="Enter"
+                              Command="{Binding AddSiblingToSelectedCommand}"/>
+                    <MenuItem Header="子を追加"
+                              InputGestureText="Alt+Enter"
+                              Command="{Binding AddChildToSelectedCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="インデント"
+                              InputGestureText="Tab"
+                              Command="{Binding IndentSelectedCommand}"/>
+                    <MenuItem Header="アウトデント"
+                              InputGestureText="Shift+Tab"
+                              Command="{Binding OutdentSelectedCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="上に移動"
+                              InputGestureText="Ctrl+↑"
+                              Command="{Binding MoveSelectedUpCommand}"/>
+                    <MenuItem Header="下に移動"
+                              InputGestureText="Ctrl+↓"
+                              Command="{Binding MoveSelectedDownCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="削除"
+                              InputGestureText="Delete"
+                              Command="{Binding DeleteSelectedCommand}"/>
+                </MenuItem>
+                <MenuItem Header="ヘルプ(_H)">
+                    <MenuItem Header="GitHub リポジトリを開く"
+                              Command="{Binding OpenRepositoryCommand}"/>
+                </MenuItem>
+            </Menu>
+
+            <!-- 中央のドラッグ領域: ファイル名を薄く表示、ここは Chrome の hit test を有効のままにして
+                 ドラッグでウィンドウ移動を効かせる (WindowChrome のデフォルト) -->
+            <TextBlock Grid.Column="2"
+                       Text="{Binding WindowTitle.Value}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource ControlSubtleForeground}"
+                       FontSize="12"
+                       IsHitTestVisible="False"/>
+
+            <!-- 更新通知 -->
+            <TextBlock Grid.Column="3"
+                       Margin="0,0,12,0"
+                       VerticalAlignment="Center"
+                       WindowChrome.IsHitTestVisibleInChrome="True"
+                       Visibility="{Binding AvailableUpdate.Value, Converter={StaticResource NullToVis}}">
+                <Hyperlink Command="{Binding OpenReleasePageCommand}"
+                           Foreground="{DynamicResource LinkForeground}"
+                           TextDecorations="None">
+                    <Run Text="更新あり: "/>
+                    <Run Text="{Binding AvailableUpdate.Value.Tag, Mode=OneWay}"/>
+                    <Run Text=" →"/>
+                </Hyperlink>
+            </TextBlock>
+
+            <!-- Window control buttons: min / max / restore / close -->
+            <StackPanel Grid.Column="4"
+                        Orientation="Horizontal"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button Style="{StaticResource CaptionButton}"
+                        Command="{x:Static SystemCommands.MinimizeWindowCommand}"
+                        ToolTip="最小化">
+                    <Path Data="M0,5 L10,5"
+                          Stroke="{DynamicResource ControlDefaultForeground}"
+                          StrokeThickness="1"
+                          SnapsToDevicePixels="True"/>
+                </Button>
+                <!-- 最大化ボタン: 通常時のみ表示 -->
+                <Button Command="{x:Static SystemCommands.MaximizeWindowCommand}"
+                        ToolTip="最大化">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <Path Data="M0,0 L10,0 L10,10 L0,10 Z"
+                          Stroke="{DynamicResource ControlDefaultForeground}"
+                          StrokeThickness="1"
+                          Fill="Transparent"
+                          SnapsToDevicePixels="True"/>
+                </Button>
+                <!-- 元に戻すボタン: 最大化時のみ表示 -->
+                <Button Command="{x:Static SystemCommands.RestoreWindowCommand}"
+                        ToolTip="元に戻す">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <Path Data="M2,0 L10,0 L10,8 M0,2 L8,2 L8,10 L0,10 Z"
+                          Stroke="{DynamicResource ControlDefaultForeground}"
+                          StrokeThickness="1"
+                          Fill="Transparent"
+                          SnapsToDevicePixels="True"/>
+                </Button>
+                <Button Style="{StaticResource CloseCaptionButton}"
+                        Command="{x:Static SystemCommands.CloseWindowCommand}"
+                        ToolTip="閉じる">
+                    <Path Data="M0,0 L10,10 M0,10 L10,0"
+                          Stroke="{DynamicResource ControlDefaultForeground}"
+                          StrokeThickness="1"
+                          SnapsToDevicePixels="True"/>
+                </Button>
             </StackPanel>
-        </Border>
+        </Grid>
 
         <!-- ==================== 下部ステータスバー ==================== -->
         <Border DockPanel.Dock="Bottom"
@@ -145,24 +299,9 @@
                 Padding="10,4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Left"
-                           Text="{Binding WindowTitle.Value}"
-                           Foreground="{DynamicResource ControlSecondaryForeground}"/>
-
-                <!-- 更新通知: AvailableUpdate が来たときだけ Hyperlink を出す。
-                     クリックで Releases ページをブラウザで開く。 -->
-                <TextBlock DockPanel.Dock="Right"
-                           Margin="12,0,16,0"
-                           VerticalAlignment="Center"
-                           Visibility="{Binding AvailableUpdate.Value, Converter={StaticResource NullToVis}}">
-                    <Hyperlink Command="{Binding OpenReleasePageCommand}"
-                               Foreground="{DynamicResource LinkForeground}"
-                               TextDecorations="None">
-                        <Run Text="更新あり: "/>
-                        <Run Text="{Binding AvailableUpdate.Value.Tag, Mode=OneWay}"/>
-                        <Run Text=" →"/>
-                    </Hyperlink>
-                </TextBlock>
-
+                           Text="Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除"
+                           Foreground="{DynamicResource ControlSubtleForeground}"
+                           FontSize="11"/>
                 <TextBlock HorizontalAlignment="Right"
                            Text="{Binding StatusMessage.Value}"
                            Foreground="{DynamicResource ControlSubtleForeground}"/>
