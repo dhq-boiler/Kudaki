@@ -1,87 +1,124 @@
 # Kudaki
 
-**Work Breakdown Structure エディター**。Excel より速く/楽にタスクを砕くことに全振りした WPF アプリ。
+A keyboard-driven Work Breakdown Structure editor for Windows.
 
 ![screenshot](docs/screenshot.png)
 
-## コンセプト
+## Overview
 
-Kudaki (砕き) はタスクを細かく砕いて計画するためのエディターです。既存の WBS ツール (Excel が事実上のデファクト) に対して、**キーボードだけで完結する編集体験**と**残時間ベースの日次更新**で差別化しています。
+Kudaki (from the Japanese verb "to break down") is a small WPF application for building and maintaining hierarchical task plans. It is designed to be faster and less friction-prone than editing a WBS in a spreadsheet: every operation has a keyboard shortcut, progress is derived from the remaining-hours you update daily, and the tool warns you when a leaf task looks too coarse to plan reliably.
 
-主なゴール:
+Kudaki is Windows-only, single-user, free, and open source.
 
-- ✅ **キーボード優先**: Enter で兄弟追加、Tab でインデント、Shift+Tab でアウトデント。マウスを触らずに階層を組める
-- ✅ **残時間モデル**: 毎日「残り何時間か」だけ更新すれば、実績と進捗率が自動で派生計算される
-- ✅ **砕き警告**: 見積が過大な葉タスク (デフォルト 40h 超) に ⚠ を付けて「まだ砕けます」と提示。名前の由来そのもの
-- ✅ **YAML 保存 / Markdown エクスポート**: GitHub 上でそのままレビューできる、差分も取れる、AI エージェントに書かせやすい
-- ✅ **ダーク UI 固定**
+## Installation
 
-## インストール
+Download `KudakiSetup.exe` from the [latest release](https://github.com/dhq-boiler/Kudaki/releases/latest) and run it.
 
-[Releases](https://github.com/dhq-boiler/Kudaki/releases/latest) から `KudakiSetup.exe` をダウンロードして実行してください (Windows 10/11 x64, ユーザー領域インストール、管理者権限不要)。
+- Windows 10 or 11, x64
+- The .NET 10 runtime is bundled in the installer; no separate download is required
+- Installs into the current user profile (`%LOCALAPPDATA%\Programs\Kudaki`); no administrator rights required
+- Uninstall from Windows "Apps & features"
 
-.NET ランタイムは同梱されているので個別インストール不要です。
+## Usage
 
-## 使い方
+Kudaki opens in an empty document. Press `Enter` and start typing to add the first task. Every subsequent operation is one keystroke.
 
-### 起動
+### Opening a file
 
-- スタートメニューから **Kudaki**
-- または `Kudaki.exe path/to/plan.wbs.yaml` でファイル直接オープン
-- `.wbs.yaml` ファイルをウィンドウにドラッグ&ドロップでも開けます
+- Launch from the Start Menu
+- Or run `Kudaki.exe path\to\plan.wbs.yaml` from a shell to open a file directly
+- Or drag a `.wbs.yaml` (or `.yaml` / `.yml`) file onto the window
 
-### キーバインド (ツリー編集)
+### Keyboard shortcuts
 
-| キー | 動作 |
-|---|---|
-| `Enter` | 選択タスクの直後に兄弟を追加 (空なら top-level に追加) |
-| `Alt+Enter` | 選択タスクの子を追加 |
-| `Tab` | 選択タスクをインデント (前の兄弟の子にする) |
-| `Shift+Tab` | 選択タスクをアウトデント (親の兄弟にする) |
-| `Ctrl+↑` / `Ctrl+↓` | 選択タスクを並び替え |
-| `Delete` | 選択タスクを削除 (子ごと) |
+Tree editing:
 
-### キーバインド (ファイル)
+| Key                | Action                                                             |
+| ------------------ | ------------------------------------------------------------------ |
+| `Enter`            | Add a sibling after the selected task (or a top-level task if none is selected) |
+| `Alt`+`Enter`      | Add a child under the selected task                                |
+| `Tab`              | Indent the selected task (make it a child of the previous sibling) |
+| `Shift`+`Tab`      | Outdent the selected task (promote it to a sibling of its parent)  |
+| `Ctrl`+`Up`        | Move the selected task up among its siblings                       |
+| `Ctrl`+`Down`      | Move the selected task down among its siblings                     |
+| `Delete`           | Delete the selected task (including its children)                  |
 
-| キー | 動作 |
-|---|---|
-| `Ctrl+N` | 新規 |
-| `Ctrl+O` | 開く |
-| `Ctrl+S` | 上書き保存 |
-| `Ctrl+Shift+S` | 名前を付けて保存 |
-| `Ctrl+E` | Markdown エクスポート |
+File:
 
-### 残時間モデル
+| Key                    | Action              |
+| ---------------------- | ------------------- |
+| `Ctrl`+`N`             | New document        |
+| `Ctrl`+`O`             | Open                |
+| `Ctrl`+`S`             | Save                |
+| `Ctrl`+`Shift`+`S`     | Save as             |
+| `Ctrl`+`E`             | Export to Markdown  |
 
-Kudaki では「実績」と「進捗率」は**入力欄がありません**。代わりに毎日「残時間」を更新するだけで、以下が派生計算されます:
+### Remaining-hours model
 
-- **消化** (実績) = `max(0, 見積 - 残)`
-- **進捗** = `(見積 - 残) / 見積` を 0〜100 に clamp
+Kudaki does not expose "actual hours" or "percent complete" as editable fields. Instead, you edit a single "remaining hours" value per leaf task each day, and the following are derived:
 
-「残 = null (未入力)」は未着手扱い、「残 = 0」は完了扱い。
+- **Spent** = `max(0, estimate - remaining)`
+- **Progress** = `(estimate - remaining) / estimate`, clamped to 0..100
 
-## 保存形式
+The rules for a leaf task are:
 
-`.wbs.yaml` 拡張子の [YAML](https://yaml.org/) ファイル。人間可読で diff も取れる、AI エージェントが直接書くのも簡単です。実サンプルは [docs/v02-plan.wbs.yaml](docs/v02-plan.wbs.yaml) を参照。
+- Remaining is unset: the task is not started (0% complete)
+- Remaining equals the estimate: the task is not started
+- Remaining is between 0 and the estimate: in progress
+- Remaining is 0: complete
+- Remaining exceeds the estimate: the task grew past its original estimate; progress stays at 0 until the estimate is revised
 
-Markdown エクスポートは GitHub 貼り付け用の task-list 形式です ([docs/v02-plan.md](docs/v02-plan.md))。
+Internal (parent) nodes aggregate the estimates and remainings of their leaves. Their spent and progress are derived from the aggregates.
 
-## 技術スタック
+### Breakdown warning
 
-- C# / WPF / **.NET 10**
-- MVVM: [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) (RelayCommand 生成) + [**Cysharp/R3**](https://github.com/Cysharp/R3) (`BindableReactiveProperty` で観測可能状態)
+If a leaf task has an estimate greater than 40 hours, Kudaki marks it with a warning glyph and a note saying it is still too large to plan reliably. This threshold is fixed in v0.1 and will be configurable later.
+
+## File format
+
+Documents are saved as YAML with the extension `.wbs.yaml`. The format is versioned (`version: 2` in the current release) and is designed to be human-readable, diff-friendly, and easy for tools (including AI agents) to produce or consume. A worked example is in [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml).
+
+A Markdown export exists for sharing on GitHub or in documentation. It uses task-list syntax (`- [ ]` / `- [x]`) and preserves rolled-up totals and the breakdown warning. See [`docs/v02-plan.md`](docs/v02-plan.md) for a rendered example.
+
+## Building from source
+
+Requires the .NET 10 SDK.
+
+```
+git clone https://github.com/dhq-boiler/Kudaki.git
+cd Kudaki
+dotnet build
+dotnet run --project src/Kudaki.App
+```
+
+To produce a self-contained release build:
+
+```
+dotnet publish src/Kudaki.App -c Release -r win-x64 --self-contained true -o publish/Kudaki.App
+```
+
+To rebuild the installer, first zip the published app into `src/Kudaki.Installer/Payload/Kudaki-payload.zip`, then publish the installer as a single-file self-contained executable:
+
+```
+dotnet publish src/Kudaki.Installer -c Release -r win-x64 --self-contained true -o publish/Kudaki.Installer
+```
+
+## Technology
+
+- C#, WPF, .NET 10
+- MVVM: [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) for command generation, [R3](https://github.com/Cysharp/R3) for observable properties
 - YAML I/O: [YamlDotNet](https://github.com/aaubry/YamlDotNet)
-- MVVM 純度: コードビハインドは View 固有配線のみ (ダイアログは `IFileDialogService`、drag&drop は Attached Behavior、キーバインドは XAML)
 
-## ロードマップ
+Code-behind is kept intentionally small. Dialogs go through an `IFileDialogService`, drag-and-drop is an attached behavior, key bindings live in XAML and bind directly to view-model commands.
 
-- **v0.2**: [MCP サーバー + diff 承認 UI](docs/v02-plan.wbs.yaml) — AI エージェントに WBS を書かせてレビューだけで済ませる
-- **v0.3+**: 個別承認、日次残時間履歴による burndown、ガントチャート派生など
+## Roadmap
 
-## ライセンス
+Planned for v0.2: an MCP server and an in-app diff review UI, so an AI agent can propose changes to the current document and a human can accept or reject them before they land. A planning WBS for this work is checked in at [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml).
 
-MIT — [LICENSE](./LICENSE) を参照。
+## License
+
+MIT. See [LICENSE](./LICENSE).
 
 ## Author
 
-[@dhq_boiler](https://github.com/dhq-boiler)
+[dhq_boiler](https://github.com/dhq-boiler)
