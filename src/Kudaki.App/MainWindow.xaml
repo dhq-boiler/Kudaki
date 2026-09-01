@@ -6,8 +6,9 @@
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         xmlns:vm="clr-namespace:Kudaki.App.ViewModels"
         xmlns:conv="clr-namespace:Kudaki.App.Converters"
+        xmlns:behaviors="clr-namespace:Kudaki.App.Behaviors"
         mc:Ignorable="d"
-        Title="{Binding WindowTitle}"
+        Title="{Binding WindowTitle.Value}"
         Height="720" Width="1200"
         MinHeight="480" MinWidth="720"
         Background="{DynamicResource BackgroundColour}"
@@ -17,13 +18,11 @@
         TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         FocusManager.FocusedElement="{Binding ElementName=Tree}"
-        AllowDrop="True"
-        DragOver="Window_DragOver"
-        Drop="Window_Drop">
+        behaviors:FileDropBehavior.Command="{Binding LoadFromPathAsyncCommand}"
+        behaviors:FileDropBehavior.Extensions=".wbs.yaml,.yaml,.yml">
 
-    <Window.DataContext>
-        <vm:MainViewModel/>
-    </Window.DataContext>
+    <!-- DataContext は code-behind で IFileDialogService を注入して生成した
+         MainViewModel を挿す (MVVM 純度確保のため XAML では新規生成しない)。 -->
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -86,17 +85,20 @@
         <!-- TreeViewItem: グローバル (ControlStyles.xaml) の retemplate に、
              VM への IsExpanded / IsSelected TwoWay バインドだけを重ねる。 -->
         <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
-            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded.Value, Mode=TwoWay}"/>
+            <Setter Property="IsSelected" Value="{Binding IsSelected.Value, Mode=TwoWay}"/>
         </Style>
     </Window.Resources>
 
     <Window.InputBindings>
-        <!-- ファイル操作: Window スコープでOK -->
+        <!-- ファイル操作は Window スコープで完結。全部 VM のコマンドに直接バインド。 -->
         <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewDocumentCommand}"/>
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenAsyncCommand}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveAsyncCommand}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveAsAsyncCommand}"/>
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding ExportMarkdownAsyncCommand}"/>
 
-        <!-- Enter / Alt+Enter は Window スコープにも配置。プロパティパネルの
-             タイトル欄で入力→Enter でコミット＋次行追加 の Excel 的な挙動を実現。
+        <!-- Enter / Alt+Enter は Window スコープにも配置 (Excel 的な「コミット→次行」)。
              複数行 TextBox (メモ, AcceptsReturn=True) は Enter を消費するので影響なし。
              Tree にフォーカスがあるときは Tree の InputBinding が先に食う。 -->
         <KeyBinding Key="Enter" Command="{Binding AddSiblingToSelectedCommand}"/>
@@ -115,17 +117,17 @@
                 <Button Content="新規 (Ctrl+N)"
                         Command="{Binding NewDocumentCommand}"
                         Style="{StaticResource ToolbarButton}"/>
-                <Button x:Name="OpenButton"
-                        Content="開く... (Ctrl+O)"
+                <Button Content="開く... (Ctrl+O)"
+                        Command="{Binding OpenAsyncCommand}"
                         Style="{StaticResource ToolbarButton}"/>
-                <Button x:Name="SaveButton"
-                        Content="保存 (Ctrl+S)"
+                <Button Content="保存 (Ctrl+S)"
+                        Command="{Binding SaveAsyncCommand}"
                         Style="{StaticResource ToolbarButton}"/>
-                <Button x:Name="SaveAsButton"
-                        Content="名前を付けて保存... (Ctrl+Shift+S)"
+                <Button Content="名前を付けて保存... (Ctrl+Shift+S)"
+                        Command="{Binding SaveAsAsyncCommand}"
                         Style="{StaticResource ToolbarButton}"/>
-                <Button x:Name="ExportMarkdownButton"
-                        Content="Markdown 出力... (Ctrl+E)"
+                <Button Content="Markdown 出力... (Ctrl+E)"
+                        Command="{Binding ExportMarkdownAsyncCommand}"
                         Style="{StaticResource ToolbarButton}"/>
                 <Separator Margin="8,0" Background="{DynamicResource SubtleDividerBrush}" Width="1"/>
                 <TextBlock VerticalAlignment="Center"
@@ -143,10 +145,10 @@
                 Padding="10,4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Left"
-                           Text="{Binding WindowTitle}"
+                           Text="{Binding WindowTitle.Value}"
                            Foreground="{DynamicResource ControlSecondaryForeground}"/>
                 <TextBlock HorizontalAlignment="Right"
-                           Text="{Binding StatusMessage}"
+                           Text="{Binding StatusMessage.Value}"
                            Foreground="{DynamicResource ControlSubtleForeground}"/>
             </DockPanel>
         </Border>
@@ -294,9 +296,9 @@
             <!-- Right: プロパティパネル -->
             <Grid Grid.Column="2"
                   Background="{DynamicResource SidebarBackground}"
-                  Visibility="{Binding SelectedTask, Converter={StaticResource NullToVis}}">
+                  Visibility="{Binding SelectedTask.Value, Converter={StaticResource NullToVis}}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-                    <StackPanel DataContext="{Binding SelectedTask}">
+                    <StackPanel DataContext="{Binding SelectedTask.Value}">
 
                         <TextBlock Text="詳細"
                                    FontSize="16" FontWeight="SemiBold"

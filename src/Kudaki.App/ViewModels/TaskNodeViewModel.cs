@@ -5,6 +5,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Kudaki.App.Models;
+using R3;
 
 namespace Kudaki.App.ViewModels;
 
@@ -15,11 +16,10 @@ public sealed partial class TaskNodeViewModel : ObservableObject
 
     private readonly TaskNode _model;
 
-    [ObservableProperty]
-    private bool _isExpanded = true;
-
-    [ObservableProperty]
-    private bool _isSelected;
+    // UI 状態は R3 の BindableReactiveProperty で保持。
+    // XAML は {Binding IsExpanded.Value, Mode=TwoWay} で参照。
+    public BindableReactiveProperty<bool> IsExpanded { get; } = new(true);
+    public BindableReactiveProperty<bool> IsSelected { get; } = new(false);
 
     public TaskNodeViewModel(TaskNode model, TaskNodeViewModel? parent)
     {
@@ -175,7 +175,7 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         var index = Parent.Children.IndexOf(this);
         var vm = new TaskNodeViewModel(new TaskNode(), Parent);
         Parent.Children.Insert(index + 1, vm);
-        vm.IsSelected = true;
+        vm.IsSelected.Value = true;
     }
 
     [RelayCommand]
@@ -183,8 +183,8 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     {
         var vm = new TaskNodeViewModel(new TaskNode(), this);
         Children.Add(vm);
-        IsExpanded = true;
-        vm.IsSelected = true;
+        IsExpanded.Value = true;
+        vm.IsSelected.Value = true;
     }
 
     [RelayCommand]
@@ -205,8 +205,8 @@ public sealed partial class TaskNodeViewModel : ObservableObject
 
         Parent.Children.Remove(this);
         newParent.Children.Add(this);
-        newParent.IsExpanded = true;
-        IsSelected = true;
+        newParent.IsExpanded.Value = true;
+        IsSelected.Value = true;
     }
 
     // 親の兄弟にする (親の直後に挿入)。親がルートなら何もしない。
@@ -220,7 +220,7 @@ public sealed partial class TaskNodeViewModel : ObservableObject
 
         oldParent.Children.Remove(this);
         newParent.Children.Insert(parentIndex + 1, this);
-        IsSelected = true;
+        IsSelected.Value = true;
     }
 
     [RelayCommand]
