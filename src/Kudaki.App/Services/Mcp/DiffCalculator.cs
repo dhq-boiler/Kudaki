@@ -15,12 +15,43 @@ namespace Kudaki.App.Services.Mcp;
 // 今は「変更を id ごとに 1 行に展開する」だけ。
 public static class DiffCalculator
 {
+    // ドキュメントレベル (Task 群じゃない) の変更を代表する疑似 TaskId。
+    // ApplyProposedDocument が Document 丸ごと差し替えなので、この 1 件を承認/却下
+    // すれば document メタデータの変更もついてくる。
+    public const string DocumentPseudoTaskId = "__document__";
+
     public static IReadOnlyList<PendingChange> Compare(WbsDocument current, WbsDocument proposed)
     {
+        var changes = new List<PendingChange>();
+
+        // ドキュメントレベル差分 (Title など)
+        var docFieldDiffs = new List<FieldDiff>();
+        if (current.Title != proposed.Title)
+        {
+            docFieldDiffs.Add(new FieldDiff
+            {
+                FieldName = nameof(WbsDocument.Title),
+                Before = current.Title,
+                After = proposed.Title,
+            });
+        }
+        if (docFieldDiffs.Count > 0)
+        {
+            // Overlay の表示用に stub TaskNode を挟む (Before/After.Title を「(ドキュメント全体)」に)
+            var stub = new TaskNode { Id = DocumentPseudoTaskId, Title = "(ドキュメント全体)" };
+            changes.Add(new PendingChange
+            {
+                Op = PendingChangeOp.Update,
+                TaskId = DocumentPseudoTaskId,
+                ParentId = null,
+                Before = stub,
+                After = stub,
+                FieldDiffs = docFieldDiffs,
+            });
+        }
+
         var currentFlat = Flatten(current);
         var proposedFlat = Flatten(proposed);
-
-        var changes = new List<PendingChange>();
 
         var currentIds = new HashSet<string>(currentFlat.Keys);
         var proposedIds = new HashSet<string>(proposedFlat.Keys);
@@ -115,7 +146,8 @@ public static class DiffCalculator
         var aPreds = a.PredecessorIds ?? new List<string>();
         var bPreds = b.PredecessorIds ?? new List<string>();
         if (!aPreds.SequenceEqual(bPreds))
-            diffs.Add(new FieldDiff { FieldName = nameof(TaskNode.PredecessorIds), Before = aPreds, After = bPreds });
+            diffs.Add(new FieldDiff { FieldName = nameof(TaskNode.PredecessorIds),
+                Before = string.Join(",", aPreds), After = string.Join(",", bPreds) });
 
         return diffs;
     }
