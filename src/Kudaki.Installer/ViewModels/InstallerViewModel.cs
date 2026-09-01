@@ -38,18 +38,51 @@ public sealed partial class InstallerViewModel : ObservableObject
     public string ProductNameWithVersion => $"{InstallerService.ProductName} {InstallerService.VersionString}";
 
     public bool IsUninstallMode { get; }
+    public bool IsAutoUpdateMode { get; }
     public BindableReactiveProperty<string> DoneMessage { get; }
 
-    public InstallerViewModel() : this(uninstallMode: false) { }
+    public InstallerViewModel() : this(uninstallMode: false, autoUpdateMode: false, waitForPid: null) { }
 
-    public InstallerViewModel(bool uninstallMode)
+    public InstallerViewModel(bool uninstallMode, bool autoUpdateMode = false, int? waitForPid = null)
     {
         IsUninstallMode = uninstallMode;
+        IsAutoUpdateMode = autoUpdateMode;
+        _waitForPid = waitForPid;
         InstallPath = new BindableReactiveProperty<string>(_installer.DefaultInstallPath);
         DoneMessage = new BindableReactiveProperty<string>(
             uninstallMode
                 ? $"{InstallerService.ProductName} のアンインストールが完了しました。"
                 : $"{InstallerService.ProductName} {InstallerService.VersionString} のインストールが完了しました。");
+    }
+
+    private readonly int? _waitForPid;
+
+    // 自動更新モード: Loaded 時に走らせる。DL 済みの自身が --auto-update で起動されている。
+    public async Task RunAutoUpdateAsync()
+    {
+        Step.Value = InstallerStep.Progress;
+        ProgressFraction.Value = 0.0;
+        ProgressMessage.Value = "開始しています...";
+        ErrorMessage.Value = null;
+
+        var progress = new Progress<InstallStep>(step =>
+        {
+            ProgressMessage.Value = step.Message;
+            ProgressFraction.Value = step.Fraction;
+        });
+
+        try
+        {
+            await _installer.RunAutoUpdateAsync(_waitForPid, progress).ConfigureAwait(true);
+            _installer.LaunchInstalledApp();
+            // UI は出さずにサイレント終了 (自動更新の運用: 新 app が既に起動している)。
+            RequestClose?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage.Value = ex.Message;
+            Step.Value = InstallerStep.Error;
+        }
     }
 
     // アンインストール時は Loaded 時に自動起動する。

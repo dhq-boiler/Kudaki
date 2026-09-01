@@ -15,6 +15,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly MarkdownExportService _markdown = new();
     private readonly UpdateCheckService _updateCheck = new();
     private readonly IFileDialogService _dialogs;
+    private readonly IUpdatePromptService _updatePrompt;
     private WbsDocument _document = null!;
     private TaskNodeViewModel _rootVm = null!;
     private string? _currentFilePath;
@@ -26,9 +27,10 @@ public sealed partial class MainViewModel : ObservableObject
     public BindableReactiveProperty<string?> StatusMessage { get; } = new(null);
     public BindableReactiveProperty<UpdateInfo?> AvailableUpdate { get; } = new(null);
 
-    public MainViewModel(IFileDialogService dialogs)
+    public MainViewModel(IFileDialogService dialogs, IUpdatePromptService updatePrompt)
     {
         _dialogs = dialogs;
+        _updatePrompt = updatePrompt;
         LoadDocument(new WbsDocument());
     }
 
@@ -152,18 +154,16 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenReleasePage()
+    private async Task OpenReleasePageAsync()
     {
-        var url = AvailableUpdate.Value?.HtmlUrl;
-        if (string.IsNullOrEmpty(url)) return;
-        try
+        var update = AvailableUpdate.Value;
+        if (update is null) return;
+        // 更新プロンプトを開く。インストーラー起動に成功した (=result true) 場合は
+        // 自身を終了して installer に上書きさせる。
+        var launched = await _updatePrompt.PromptAndInstallAsync(update).ConfigureAwait(true);
+        if (launched)
         {
-            System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-        }
-        catch
-        {
-            // ブラウザ起動失敗は静か
+            System.Windows.Application.Current.Shutdown();
         }
     }
 

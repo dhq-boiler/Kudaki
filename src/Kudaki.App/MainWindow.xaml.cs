@@ -20,7 +20,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new MainViewModel(new WpfFileDialogService(this));
+        DataContext = new MainViewModel(
+            new WpfFileDialogService(this),
+            new WpfUpdatePromptService(this));
 
         CommandBindings.Add(new CommandBinding(
             SystemCommands.MinimizeWindowCommand, (_, _) => SystemCommands.MinimizeWindow(this)));

@@ -23,7 +23,7 @@ public sealed class InstallerService
     public const string AppName = "Kudaki";
     public const string ProductName = "Kudaki";
     public const string PublisherName = "dhq_boiler";
-    public const string VersionString = "0.1.1";
+    public const string VersionString = "0.1.2";
 
     // Kudaki.App の実行 EXE 名 (Kudaki.App.csproj で AssemblyName=Kudaki 指定)。
     public const string TargetExeName = "Kudaki.exe";
@@ -39,6 +39,85 @@ public sealed class InstallerService
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Programs", "Kudaki");
+
+    // HKCU に登録された InstallLocation を返す。未インストールなら null。
+    public string? GetInstalledLocation()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(UninstallRegKeyPath);
+        return key?.GetValue("InstallLocation") as string;
+    }
+
+    // --auto-update モード: 既存インストール先に静かに上書きして新 Kudaki を起動する。
+    //   1. waitForPid が生きていれば終了を待つ (最大 10s)
+    //   2. 既存 InstallLocation を registry から取得 (なければ DefaultInstallPath へ)
+    //   3. Payload を展開 (ショートカット / registry は既存を維持、version 表示だけ更新)
+    //   4. Kudaki.exe を起動して自身終了
+    public async Task RunAutoUpdateAsync(int? waitForPid, IProgress<InstallStep> progress, CancellationToken ct = default)
+    {
+        if (waitForPid.HasValue)
+        {
+            progress.Report(new InstallStep("既存の Kudaki の終了を待っています...", 0.02));
+            try
+            {
+                var oldProc = System.Diagnostics.Process.GetProcessById(waitForPid.Value);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await Task.Run(() => oldProc.WaitForExit(10000), cts.Token).ConfigureAwait(false);
+            }
+            catch (ArgumentException) { /* 既に落ちてる = OK */ }
+            catch (Exception) { /* 待つ失敗も無視、次で失敗したら諦める */ }
+        }
+
+        var installPath = GetInstalledLocation() ?? DefaultInstallPath;
+        Directory.CreateDirectory(installPath);
+
+        progress.Report(new InstallStep("ファイルを展開中...", 0.10));
+        // ロックが解けるまで少しリトライ (プロセス終了直後は EXE が握られたままのことがある)。
+        Exception? lastError = null;
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            try
+            {
+                await Task.Run(() => ExtractPayload(installPath, progress, ct), ct).ConfigureAwait(false);
+                lastError = null;
+                break;
+            }
+            catch (IOException ex)
+            {
+                lastError = ex;
+                await Task.Delay(500, ct).ConfigureAwait(false);
+            }
+        }
+        if (lastError is not null) throw lastError;
+
+        // アンインストーラー本体と registry の版数も更新する。
+        progress.Report(new InstallStep("アンインストール情報を更新中...", 0.85));
+        var currentExe = Environment.ProcessPath
+            ?? throw new InvalidOperationException("インストーラー自身のパスを取得できませんでした");
+        var uninstallerPath = Path.Combine(installPath, UninstallerExeName);
+        try { File.Copy(currentExe, uninstallerPath, overwrite: true); } catch { }
+
+        var targetExePath = Path.Combine(installPath, TargetExeName);
+        RegisterUninstaller(installPath, uninstallerPath, targetExePath);
+
+        progress.Report(new InstallStep("完了", 1.0));
+    }
+
+    // 更新完了後に新 Kudaki を起動する (auto-update フロー最終ステップ)。
+    public void LaunchInstalledApp()
+    {
+        var installPath = GetInstalledLocation() ?? DefaultInstallPath;
+        var exe = Path.Combine(installPath, TargetExeName);
+        if (!File.Exists(exe)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = installPath
+            });
+        }
+        catch { }
+    }
 
     public async Task InstallAsync(InstallOptions options, IProgress<InstallStep> progress, CancellationToken ct = default)
     {
