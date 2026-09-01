@@ -33,4 +33,16 @@ public partial class App : Application
             }
         }));
     }
+
+    // MainWindow の InitializeComponent 後に呼ぶ。GitHub API を fire-and-forget。
+    internal void ScheduleUpdateCheck()
+    {
+        Dispatcher.BeginInvoke(new System.Action(async () =>
+        {
+            if (MainWindow?.DataContext is MainViewModel vm)
+            {
+                await vm.CheckForUpdatesAsync().ConfigureAwait(true);
+            }
+        }));
+    }
 }

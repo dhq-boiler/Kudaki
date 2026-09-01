@@ -147,6 +147,22 @@
                 <TextBlock DockPanel.Dock="Left"
                            Text="{Binding WindowTitle.Value}"
                            Foreground="{DynamicResource ControlSecondaryForeground}"/>
+
+                <!-- 更新通知: AvailableUpdate が来たときだけ Hyperlink を出す。
+                     クリックで Releases ページをブラウザで開く。 -->
+                <TextBlock DockPanel.Dock="Right"
+                           Margin="12,0,16,0"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding AvailableUpdate.Value, Converter={StaticResource NullToVis}}">
+                    <Hyperlink Command="{Binding OpenReleasePageCommand}"
+                               Foreground="{DynamicResource LinkForeground}"
+                               TextDecorations="None">
+                        <Run Text="更新あり: "/>
+                        <Run Text="{Binding AvailableUpdate.Value.Tag, Mode=OneWay}"/>
+                        <Run Text=" →"/>
+                    </Hyperlink>
+                </TextBlock>
+
                 <TextBlock HorizontalAlignment="Right"
                            Text="{Binding StatusMessage.Value}"
                            Foreground="{DynamicResource ControlSubtleForeground}"/>

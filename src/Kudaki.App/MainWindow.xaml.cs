@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = new MainViewModel(new WpfFileDialogService(this));
+        ((App)Application.Current).ScheduleUpdateCheck();
     }
 
     private MainViewModel Vm => (MainViewModel)DataContext;

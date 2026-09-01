@@ -13,6 +13,7 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private readonly YamlStorageService _storage = new();
     private readonly MarkdownExportService _markdown = new();
+    private readonly UpdateCheckService _updateCheck = new();
     private readonly IFileDialogService _dialogs;
     private WbsDocument _document = null!;
     private TaskNodeViewModel _rootVm = null!;
@@ -23,6 +24,7 @@ public sealed partial class MainViewModel : ObservableObject
     public BindableReactiveProperty<string> WindowTitle { get; } = new("Kudaki - 無題");
     public BindableReactiveProperty<bool> IsDirty { get; } = new(false);
     public BindableReactiveProperty<string?> StatusMessage { get; } = new(null);
+    public BindableReactiveProperty<UpdateInfo?> AvailableUpdate { get; } = new(null);
 
     public MainViewModel(IFileDialogService dialogs)
     {
@@ -121,6 +123,33 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage.Value = $"Markdown エクスポート失敗: {ex.Message}";
+        }
+    }
+
+    // 起動時に GitHub Releases を非同期確認、新しいのがあれば AvailableUpdate に載せる。
+    // 失敗は静か。App.OnStartup から fire-and-forget で叩く。
+    internal async Task CheckForUpdatesAsync()
+    {
+        var latest = await _updateCheck.CheckAsync().ConfigureAwait(true);
+        if (latest is not null)
+        {
+            AvailableUpdate.Value = latest;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenReleasePage()
+    {
+        var url = AvailableUpdate.Value?.HtmlUrl;
+        if (string.IsNullOrEmpty(url)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // ブラウザ起動失敗は静か
         }
     }
 
