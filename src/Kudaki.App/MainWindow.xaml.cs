@@ -1,9 +1,11 @@
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Kudaki.App.Services;
 using Kudaki.App.ViewModels;
+using R3;
 
 namespace Kudaki.App;
 
@@ -28,6 +30,10 @@ public partial class MainWindow : Window
         DataContext = vm;
         MainViewModel.Current = vm;
 
+        // Landing overlay に表示するバージョン (splash と同じフォーマット v0.1.4)。
+        var ver = Assembly.GetExecutingAssembly().GetName().Version;
+        LandingVersionText.Text = ver is null ? "v0.0.0" : $"v{ver.Major}.{ver.Minor}.{ver.Build}";
+
         CommandBindings.Add(new CommandBinding(
             SystemCommands.MinimizeWindowCommand, (_, _) => SystemCommands.MinimizeWindow(this)));
         CommandBindings.Add(new CommandBinding(
@@ -36,6 +42,18 @@ public partial class MainWindow : Window
             SystemCommands.RestoreWindowCommand, (_, _) => SystemCommands.RestoreWindow(this)));
         CommandBindings.Add(new CommandBinding(
             SystemCommands.CloseWindowCommand, (_, _) => SystemCommands.CloseWindow(this)));
+
+        // 起動 progress を刻む。UI 生成完了 → Loaded (UI 準備完了) の 2 段階を View 側で報告し、
+        // MCP 起動完了と Document ロードは App/ViewModel 側から報告する。
+        vm.ReportLoading(30, "起動中");
+        Loaded += (_, _) => vm.ReportLoading(50, "UI 準備完了");
+
+        // Landing overlay の可視制御。XAML 側 Visibility バインドで拾えなかったので
+        // R3 の Subscribe で code-behind から直接切り替える。
+        vm.IsLoading.Subscribe(loading =>
+        {
+            LandingOverlay.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+        });
 
         ((App)Application.Current).ScheduleUpdateCheck();
     }

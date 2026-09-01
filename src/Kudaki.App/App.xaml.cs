@@ -23,7 +23,11 @@ public partial class App : Application
 
         base.OnStartup(e);
 
+        var hasStartupFile = e.Args.Length > 0 && File.Exists(e.Args[0]);
+
         // MCP サーバーを非同期起動 (UI 側の立ち上げをブロックしない)。
+        // 完了時に Landing の progress を進める (75%)。起動時にファイル引数がなければ
+        // ここから 100% まで進めて Landing を閉じる。
         _mcpHost = new McpHostService();
         _ = Task.Run(async () =>
         {
@@ -31,21 +35,28 @@ public partial class App : Application
             {
                 await _mcpHost.StartAsync().ConfigureAwait(false);
                 Debug.WriteLine($"[Kudaki.Mcp] listening on {_mcpHost.EndpointUrl}");
+                MainViewModel.Current?.ReportLoading(75, "MCP サーバー起動");
+
+                if (!hasStartupFile)
+                {
+                    // Landing を一瞬見せる余韻。ロードするものが何もないので短めで閉じる。
+                    await Task.Delay(200).ConfigureAwait(false);
+                    MainViewModel.Current?.ReportLoading(100, "準備完了");
+                }
             }
             catch (System.Exception ex)
             {
                 Debug.WriteLine($"[Kudaki.Mcp] failed to start: {ex}");
+                // 起動失敗しても Landing は閉じないと UI が使えないので閉じる。
+                MainViewModel.Current?.ReportLoading(100, "MCP サーバー起動失敗 (ログ参照)");
             }
         });
 
-        // コマンドライン引数で最初のパスが .yaml / .wbs.yaml なら起動時に開く。
-        //   例: Kudaki.App.exe C:\path\to\plan.wbs.yaml
-        if (e.Args.Length == 0) return;
-
+        if (!hasStartupFile) return;
         var path = e.Args[0];
-        if (!File.Exists(path)) return;
 
         // MainWindow が完全に立ち上がってから開く。
+        // LoadFromPathAsync 側で progress を 80→95→100 に進めるので追加処理は不要。
         Dispatcher.BeginInvoke(new System.Action(async () =>
         {
             if (MainWindow?.DataContext is MainViewModel vm)

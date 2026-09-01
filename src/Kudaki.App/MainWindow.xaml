@@ -9,6 +9,7 @@
         xmlns:behaviors="clr-namespace:Kudaki.App.Behaviors"
         mc:Ignorable="d"
         Title="{Binding WindowTitle.Value}"
+        Icon="pack://application:,,,/Assets/kudaki.ico"
         Height="720" Width="1200"
         MinHeight="480" MinWidth="720"
         Background="{DynamicResource BackgroundColour}"
@@ -124,6 +125,8 @@
         <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding AddChildToSelectedCommand}"/>
     </Window.InputBindings>
 
+    <!-- Landing overlay (splash 相当) を DockPanel の上に載せるため Grid で wrap。 -->
+    <Grid>
     <DockPanel>
 
         <!-- ==================== WindowChrome カスタムタイトルバー ==================== -->
@@ -663,4 +666,57 @@
 
         </Grid>
     </DockPanel>
+
+    <!-- ==================== 起動ランディング (splash 相当) ==================== -->
+    <!-- MainViewModel.IsLoading が true のあいだ TreeView 側を覆う overlay。
+         プログレスバーは実際のロード進捗 (LoadingPercent) と同期。
+         各起動フェーズが MainViewModel.ReportLoading(percent, status) を呼ぶ。 -->
+    <Grid x:Name="LandingOverlay"
+          Panel.ZIndex="100"
+          Background="#FF0A0605"
+          Visibility="Visible">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Image Source="pack://application:,,,/Assets/kudaki-mark.png"
+                   Width="140" Height="140"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,40"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+            <TextBlock Text="KUDAKI"
+                       FontSize="44"
+                       FontWeight="Light"
+                       Foreground="#FFEBEBEB"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,10"/>
+            <TextBlock Text="WORK BREAKDOWN STRUCTURE EDITOR"
+                       FontSize="11"
+                       Foreground="#FF8E8E8E"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="24,0,24,20">
+            <ProgressBar Height="2"
+                         Minimum="0" Maximum="100"
+                         Value="{Binding LoadingPercent.Value, Mode=OneWay}"
+                         Background="#FF1A1414"
+                         Foreground="#FFA0332C"
+                         BorderThickness="0"
+                         Margin="0,0,0,14"/>
+            <Grid>
+                <TextBlock Text="{Binding LoadingStatus.Value}"
+                           FontSize="11"
+                           Foreground="#FF8E8E8E"
+                           HorizontalAlignment="Left"/>
+                <TextBlock x:Name="LandingVersionText"
+                           FontSize="11"
+                           Foreground="#FF8E8E8E"
+                           HorizontalAlignment="Right"/>
+            </Grid>
+        </StackPanel>
+    </Grid>
+    </Grid>
 </Window>

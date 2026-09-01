@@ -23,7 +23,16 @@
     <PackageProjectUrl>https://github.com/dhq-boiler/Kudaki</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dhq-boiler/Kudaki</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <!-- Explorer / タスクバーが exe から拾うアイコン (multi-size ICO)。 -->
+    <ApplicationIcon>Assets\kudaki.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Window.Icon から pack URI (/Assets/kudaki.ico) で参照するので Resource 化。 -->
+    <Resource Include="Assets\kudaki.ico" />
+    <!-- SplashWindow.xaml で <Image Source="pack://.../Assets/kudaki-mark.png"/> するため。 -->
+    <Resource Include="Assets\kudaki-mark.png" />
+  </ItemGroup>
 
   <PropertyGroup>
     <!-- publish 時のみ効く。ReadyToRun で起動を速く、TrimUnused は WPF が非対応なので off。 -->

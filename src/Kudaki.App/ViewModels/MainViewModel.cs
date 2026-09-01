@@ -27,6 +27,12 @@ public sealed partial class MainViewModel : ObservableObject
     public BindableReactiveProperty<string?> StatusMessage { get; } = new(null);
     public BindableReactiveProperty<UpdateInfo?> AvailableUpdate { get; } = new(null);
 
+    // 起動時ランディング (splash 相当)。ロード完了までは Landing overlay が上に乗る。
+    // 進捗は各起動フェーズが ReportLoading で 0→100 を報告して埋めていく。
+    public BindableReactiveProperty<bool> IsLoading { get; } = new(true);
+    public BindableReactiveProperty<int> LoadingPercent { get; } = new(0);
+    public BindableReactiveProperty<string> LoadingStatus { get; } = new("Kudaki を起動中");
+
     // 先行タスク追加候補 (SelectedTask 変更・依存編集後に再計算)
     public BindableReactiveProperty<System.Collections.Generic.IReadOnlyList<TaskNodeViewModel>>
         SelectablePredecessors { get; } = new(System.Array.Empty<TaskNodeViewModel>());
@@ -83,6 +89,21 @@ public sealed partial class MainViewModel : ObservableObject
         LoadDocument(proposed);
         IsDirty.Value = true;
         StatusMessage.Value = "AI 提案を反映しました (未保存)";
+    }
+
+    // 起動シーケンスの各フェーズが呼ぶ進捗レポート。100 に達したら Landing を消す。
+    // UI スレッド外から呼ばれる可能性があるので必要なら Dispatcher で戻す。
+    public void ReportLoading(int percent, string? status = null)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(new System.Action(() => ReportLoading(percent, status)));
+            return;
+        }
+        if (percent > LoadingPercent.Value) LoadingPercent.Value = percent;
+        if (status is not null) LoadingStatus.Value = status;
+        if (LoadingPercent.Value >= 100) IsLoading.Value = false;
     }
 
     internal void LoadDocument(WbsDocument document)
@@ -242,19 +263,25 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ドラッグ&ドロップやスタートアップ引数からの直接ロード。
     // FileDropBehavior が Command として呼び出す (string 引数)。
+    // 起動 progress を進める用に ReportLoading を段階的に叩く (IsLoading 中のみ意味あり;
+    // Landing が既に閉じたあとは percent > current 条件で no-op になる)。
     [RelayCommand]
     internal async Task LoadFromPathAsync(string path)
     {
         try
         {
+            ReportLoading(80, $"ファイルを読み込み中: {System.IO.Path.GetFileName(path)}");
             var doc = await _storage.LoadAsync(path).ConfigureAwait(true);
+            ReportLoading(95, "ドキュメントを構築中");
             LoadDocument(doc);
             SetCurrentFilePath(path);
             StatusMessage.Value = $"読み込みました: {System.IO.Path.GetFileName(path)}";
+            ReportLoading(100, "完了");
         }
         catch (Exception ex)
         {
             StatusMessage.Value = $"読み込み失敗: {ex.Message}";
+            ReportLoading(100);  // 失敗時も Landing は消す (エラーは StatusMessage で見せる)
         }
     }
 

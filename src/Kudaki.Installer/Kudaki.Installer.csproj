@@ -22,7 +22,12 @@
     <Copyright>Copyright © 2026 dhq_boiler</Copyright>
     <PackageProjectUrl>https://github.com/dhq-boiler/Kudaki</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dhq-boiler/Kudaki</RepositoryUrl>
+    <ApplicationIcon>Assets\kudaki.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\kudaki.ico" />
+  </ItemGroup>
 
   <PropertyGroup>
     <!-- リリース publish は SingleFile + SelfContained で 1 本の exe に固める。
