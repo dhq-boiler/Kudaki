@@ -7,11 +7,9 @@
     > project-mcp-roadmap の方針: HTTP/SSE を推奨、Kestrel in-process ホスト。
     > stdio 別プロセス案は配線が倍になるので却下したが、
     > Claude Desktop 側の対応状況で再検討の余地はある。
-    > 
   - [ ] **MCP ツール定義 (get_document / propose_changes / get_pending_summary)** — 見積 3h / 進捗 0%
     > propose_changes は同期 await 方式で、AI から見ると1回呼んで結果を待つだけ。
     > get_pending_summary はフォールバック用。
-    > 
   - [ ] **Diff データモデル設計 (PendingChange, FieldDiffs)** — 見積 3h / 進捗 0%
   - [ ] **承認フロー設計 (all-or-nothing 一括承認)** — 見積 2h / 進捗 0%
     > 個別承認は v0.3 で検討。
@@ -26,7 +24,6 @@
   - [ ] **propose_changes ツール (提案受付 + 承認/却下を await して返す)** — 見積 6h / 進捗 0%
     > TaskCompletionSource で承認/却下シグナルを待つ。
     > タイムアウト (デフォルト 5分) 到達で却下扱い。
-    > 
   - [ ] **get_pending_summary ツール (現在ペンディング中の変更概要)** — 見積 2h / 進捗 0%
   - [ ] **エラー / タイムアウト処理 + ロギング** — 見積 3h / 進捗 0%
 - [ ] **Diff エンジン** — 見積合計 18h / 残合計 18h / 進捗 0%

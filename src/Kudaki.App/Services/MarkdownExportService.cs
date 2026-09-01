@@ -79,11 +79,13 @@ public sealed class MarkdownExportService
 
         sb.AppendLine();
 
-        // メモは blockquote で1段下げ
+        // メモは blockquote で1段下げ。YAML `notes: |` の末尾改行が
+        // 空 blockquote (`> `) として残らないよう先に TrimEnd。
         if (!string.IsNullOrWhiteSpace(task.Notes))
         {
             var noteIndent = new string(' ', (indentLevel + 1) * 2);
-            foreach (var line in task.Notes.Split('\n'))
+            var trimmedNotes = task.Notes.TrimEnd('\r', '\n', ' ', '\t');
+            foreach (var line in trimmedNotes.Split('\n'))
             {
                 var trimmed = line.TrimEnd('\r');
                 sb.Append(noteIndent).Append("> ").AppendLine(trimmed);

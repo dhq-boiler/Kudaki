@@ -16,7 +16,10 @@
         FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
-        FocusManager.FocusedElement="{Binding ElementName=Tree}">
+        FocusManager.FocusedElement="{Binding ElementName=Tree}"
+        AllowDrop="True"
+        DragOver="Window_DragOver"
+        Drop="Window_Drop">
 
     <Window.DataContext>
         <vm:MainViewModel/>
@@ -315,7 +318,7 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="見積 (h)" Style="{StaticResource FieldLabel}"/>
                                 <TextBox AutomationProperties.AutomationId="PropEstimate"
-                                         Text="{Binding EstimateHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
+                                         Text="{Binding EstimateHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource FieldBox}"
                                          IsEnabled="{Binding IsLeaf}"/>
                             </StackPanel>
@@ -325,7 +328,7 @@
                                     <Run Text=" — 毎日更新" Foreground="{DynamicResource ControlSubtleForeground}" FontSize="10"/>
                                 </TextBlock>
                                 <TextBox AutomationProperties.AutomationId="PropRemaining"
-                                         Text="{Binding RemainingHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=LostFocus}"
+                                         Text="{Binding RemainingHours, Converter={StaticResource NumStrConv}, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource FieldBox}"
                                          IsEnabled="{Binding IsLeaf}"/>
                             </StackPanel>

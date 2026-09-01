@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -75,6 +77,37 @@ public partial class MainWindow : Window
         };
         if (dlg.ShowDialog(this) != true) return;
         await Vm.SaveToPathAsync(dlg.FileName);
+    }
+
+    // .wbs.yaml / .yaml / .yml をウィンドウにドロップで直接開く。
+    // ドロップ中はカーソルを Copy に、それ以外なら None にする。
+    private void Window_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = HasSupportedFile(e) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void Window_Drop(object sender, DragEventArgs e)
+    {
+        if (!HasSupportedFile(e)) return;
+        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        var path = files.FirstOrDefault(IsSupportedPath);
+        if (path is null) return;
+        await Vm.LoadFromPathAsync(path);
+    }
+
+    private static bool HasSupportedFile(DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return false;
+        var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+        return files?.Any(IsSupportedPath) == true;
+    }
+
+    private static bool IsSupportedPath(string path)
+    {
+        return path.EndsWith(".wbs.yaml", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase);
     }
 
     private async System.Threading.Tasks.Task ExportMarkdownAsync()
