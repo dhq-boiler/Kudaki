@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo/lockup-horizontal.png" alt="Kudaki" width="620"/>
+</p>
+
 # Kudaki
 
 A keyboard-driven Work Breakdown Structure editor for Windows.
@@ -86,6 +90,64 @@ Right-click a parent task in the tree and pick "Show arrow diagram" to open a pe
 
 A small demo file exercising cross-phase dependencies is in [`docs/deps-demo.wbs.yaml`](docs/deps-demo.wbs.yaml).
 
+## MCP server (AI agent integration)
+
+Kudaki exposes a [Model Context Protocol](https://modelcontextprotocol.io/) server on `http://localhost:27650/mcp` while running. AI agents (Claude Code, Claude Desktop, and any other MCP-aware client) can read the current document and propose changes; the user reviews the proposed diff in an in-app overlay and accepts or rejects the whole set with one click.
+
+Transport is Streamable HTTP in stateless mode (MCP 2025 spec). No session tokens or authentication are used; the server binds to `localhost` only.
+
+### Tools exposed
+
+- `get_document` — read-only. Returns the currently open WBS as YAML text.
+- `propose_changes` — submit a full replacement WBS as YAML text. Kudaki diffs it against the current document, shows the diff to the user, and waits (default 5 minutes, configurable per call) for approval or rejection. Returns one of: `approved` / `rejected` / `timeout` / `no_changes` / `error`.
+
+### Connecting from Claude Code
+
+Add to `~/.claude/mcp.json` (or a per-project `.claude/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "kudaki": {
+      "type": "http",
+      "url": "http://localhost:27650/mcp"
+    }
+  }
+}
+```
+
+Kudaki must be running for the MCP endpoint to be reachable.
+
+### Approval UI
+
+When a `propose_changes` call arrives, Kudaki shows a modal diff overlay listing each proposed change:
+
+- Additions are outlined in green with a `+` marker.
+- Deletions are outlined in red with a `-` marker.
+- Updates are outlined in orange with a `~` marker, followed by per-field Before → After lines.
+- Document-level changes (e.g. the document title) appear once under a synthetic "(ドキュメント全体)" entry.
+
+Two buttons at the bottom — "承認 (全部反映)" and "却下 (全部)" — commit or discard the entire proposed set. If the user does not respond within the tool's `timeoutSeconds`, the call returns `timeout` and the overlay closes without changing the document. Fine-grained (per-change) approval is planned for a later release.
+
+## Using Kudaki as an AI agent's task tracker
+
+Most AI coding agents (Claude Code, Copilot Chat, and so on) keep their task list inside the session. It evaporates when the session ends and it does not cross project boundaries. That is fine for tiny one-off tasks, but it makes long-running work invisible to the human and unshareable between sessions.
+
+Kudaki is built to be the external, persistent task store that fixes this. Point the agent at a `.wbs.yaml` file — for example `docs/tasks.wbs.yaml` in a git-managed repository, or `~/.claude/projects/<slug>/tasks.wbs.yaml` for per-user tracking outside the repo — and tell it to manage its own work there. Two things you get right away:
+
+- **Token savings**: the agent stops carrying its task list around inside the conversation context. Task state lives in the `.wbs.yaml` file and is fetched via `get_document` only when the agent actually needs it, so every subsequent prompt stays leaner and cheaper.
+- **Visual overview in a real GUI window**: you see the agent's work in Kudaki's WBS view — hierarchy, aggregated hours, breakdown warnings, dependency arrows — instead of scrolling through terminal task listings. You can watch the agent's plan take shape and spot problems (a leaf that's still 60 hours, an unplanned dependency) at a glance.
+
+Everything else follows from those:
+
+- Tasks persist across sessions and diff cleanly in git.
+- Every write the agent makes goes through the MCP `propose_changes` flow, so you approve or reject the diff before it lands in the file.
+- A fresh session picks the state back up by calling `get_document` — no re-briefing required.
+
+In `~/.claude/CLAUDE.md` (global) or a project's `CLAUDE.md`, an instruction of this shape is enough to route the agent's task management through Kudaki from that session on:
+
+> Task management is done in a Kudaki `.wbs.yaml` file, not with the built-in task tools. Default location: `docs/tasks.wbs.yaml` in git-managed repositories, otherwise `~/.claude/projects/<slug>/tasks.wbs.yaml`. Existing in-flight session tasks can finish through the built-in list; new tasks go to the `.wbs.yaml` from that point on.
+
 ## File format
 
 Documents are saved as YAML with the extension `.wbs.yaml`. The format is versioned (`version: 3` in the current release) and is designed to be human-readable, diff-friendly, and easy for tools (including AI agents) to produce or consume. A worked example is in [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml).
@@ -127,7 +189,9 @@ Code-behind is kept intentionally small. Dialogs go through an `IFileDialogServi
 
 ## Roadmap
 
-Planned for v0.2: an MCP server and an in-app diff review UI, so an AI agent can propose changes to the current document and a human can accept or reject them before they land. A planning WBS for this work is checked in at [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml).
+Shipped in v0.2: the MCP server described above with `get_document` and `propose_changes`, the diff review overlay, and document-level diff detection.
+
+Planned for v0.3 and later: per-change (not just all-or-nothing) approval in the diff overlay, subtree add/delete folding in the diff, and configurability of the MCP listen port from the UI. See [`docs/v02-plan.wbs.yaml`](docs/v02-plan.wbs.yaml) for the running punch list.
 
 ## License
 
