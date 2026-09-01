@@ -64,21 +64,13 @@ public sealed class YamlStorageService
         await File.WriteAllTextAsync(path, yaml, new UTF8Encoding(false), ct).ConfigureAwait(false);
     }
 
-    public async Task<WbsDocument> LoadAsync(string path, CancellationToken ct = default)
+    // in-memory デシリアライズ。MCP propose_changes で AI から投入された
+    // YAML 文字列をパースするのに使う。ファイル I/O とバージョンチェックの共通部品。
+    public WbsDocument DeserializeFromString(string yaml)
     {
-        string yaml;
-        try
-        {
-            yaml = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            throw new WbsLoadException($"ファイルの読込に失敗したっす: {ex.Message}", ex);
-        }
-
         if (string.IsNullOrWhiteSpace(yaml))
         {
-            throw new WbsLoadException("ファイルが空っすね。");
+            throw new WbsLoadException("YAML が空っすね。");
         }
 
         WbsDocument? doc;
@@ -106,6 +98,21 @@ public sealed class YamlStorageService
         // 将来 v0 → v1 みたいなマイグレーションが要ればここに書く。
 
         return doc;
+    }
+
+    public async Task<WbsDocument> LoadAsync(string path, CancellationToken ct = default)
+    {
+        string yaml;
+        try
+        {
+            yaml = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new WbsLoadException($"ファイルの読込に失敗したっす: {ex.Message}", ex);
+        }
+
+        return DeserializeFromString(yaml);
     }
 }
 

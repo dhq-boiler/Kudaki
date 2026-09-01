@@ -27,6 +27,11 @@ tasks:
   - id: t-diff-model
     title: Diff データモデル設計 (PendingChange, FieldDiffs)
     estimateHours: 3
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。Models/PendingChange.cs: enum PendingChangeOp {Add, Update, Delete},
+      FieldDiff { FieldName, Before, After }, PendingChange { Op, TaskId, ParentId,
+      Before, After, FieldDiffs }。
   - id: t-approval
     title: 承認フロー設計 (all-or-nothing 一括承認)
     estimateHours: 2
@@ -79,9 +84,15 @@ tasks:
   - id: t-propose
     title: propose_changes ツール (提案受付 + 承認/却下を await して返す)
     estimateHours: 6
+    remainingHours: 0
     notes: |
-      TaskCompletionSource で承認/却下シグナルを待つ。
-      タイムアウト (デフォルト 5分) 到達で却下扱い。
+      2026-09-01 完了。PendingChangesService (singleton) が
+      ObservableCollection<PendingChangeSet> と TaskCompletionSource で
+      SubmitAsync → Approve/Reject/TimedOut を返す。MCP tool 側は Approved 時に
+      MainViewModel.ApplyProposedDocument(proposed) を Dispatcher.InvokeAsync で
+      UI スレッド上で実行。承認 UI は t-panel/t-colors/t-approve-btn (未着手) で
+      Pending にバインドする形。動作確認: timeout=5s で MODIFIED yaml を送って
+      正確に 5.01s 後に {"result":"timeout"} が返ることを検証済み。
   - id: t-summary
     title: get_pending_summary ツール (現在ペンディング中の変更概要)
     estimateHours: 2
@@ -94,9 +105,21 @@ tasks:
   - id: t-compare
     title: WbsDocument 比較 (id ベース照合、Guid が安定していることを前提)
     estimateHours: 4
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。Services/Mcp/DiffCalculator.Compare(current, proposed):
+      Flatten で id → (Node, ParentId) の辞書化 → set except で Add/Delete、
+      intersect で Update 候補を出して CompareFields で個別フィールド差分。
   - id: t-pending
     title: PendingChange 生成 (Op=Add/Update/Delete + FieldDiffs)
     estimateHours: 6
+    remainingHours: 0
+    notes: |
+      2026-09-01 完了。CompareFields で Title/EstimateHours/RemainingHours/
+      Assignee/DueDate/Notes/PredecessorIds/ParentId を diff、FieldDiff リストに
+      展開。未対応 (t-subtree で対応予定): subtree Add/Delete の畳み込み。
+      既知の課題: get_document → propose_changes の round-trip で SAME 判定に
+      予期せぬ差分が出る (未調査、t-diff-test で切り分ける)。
   - id: t-subtree
     title: ネスト subtree の Add / Delete をまとめて1つの PendingChange に
     estimateHours: 4

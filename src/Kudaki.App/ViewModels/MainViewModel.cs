@@ -75,6 +75,16 @@ public sealed partial class MainViewModel : ObservableObject
         return dispatcher.Invoke(() => _storage.SerializeToString(_document));
     }
 
+    // MCP propose_changes がユーザー承認を得た時に呼ばれる。
+    // proposed を実 Document に差し替え、変更未保存 (dirty) にする。
+    // UI スレッドから呼ぶ (Kestrel 側が Dispatcher.InvokeAsync で switching)。
+    public void ApplyProposedDocument(WbsDocument proposed)
+    {
+        LoadDocument(proposed);
+        IsDirty.Value = true;
+        StatusMessage.Value = "AI 提案を反映しました (未保存)";
+    }
+
     internal void LoadDocument(WbsDocument document)
     {
         _document = document;
