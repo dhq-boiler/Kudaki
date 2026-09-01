@@ -56,15 +56,12 @@
             </Setter>
         </Style>
 
-        <!-- Tree item の title 用インライン TextBox -->
-        <Style x:Key="InlineTitleBox" TargetType="TextBox">
+        <!-- Tree item の title 用インライン TextBox。デフォルトを継承して背景だけ透過に。 -->
+        <Style x:Key="InlineTitleBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource ControlDefaultForeground}"/>
             <Setter Property="MinWidth" Value="240"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Style.Triggers>
                 <Trigger Property="IsKeyboardFocused" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
@@ -72,14 +69,8 @@
             </Style.Triggers>
         </Style>
 
-        <!-- 詳細パネル用 TextBox -->
-        <Style x:Key="FieldBox" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource ControlDefaultForeground}"/>
-            <Setter Property="Padding" Value="6,4"/>
+        <!-- 詳細パネル用 TextBox。デフォルトに縦マージンだけ足す。 -->
+        <Style x:Key="FieldBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
 
@@ -89,11 +80,11 @@
             <Setter Property="FontSize" Value="11"/>
         </Style>
 
-        <!-- TreeViewItem: IsSelected/IsExpanded を VM と TwoWay -->
-        <Style TargetType="TreeViewItem">
+        <!-- TreeViewItem: グローバル (ControlStyles.xaml) の retemplate に、
+             VM への IsExpanded / IsSelected TwoWay バインドだけを重ねる。 -->
+        <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
             <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
-            <Setter Property="Padding" Value="2"/>
         </Style>
     </Window.Resources>
 
