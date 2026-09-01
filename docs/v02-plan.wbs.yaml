@@ -1,0 +1,110 @@
+version: 2
+title: Kudaki v0.2 — MCP + diff承認
+createdAt: 2026-09-01T00:00:00Z
+modifiedAt: 2026-09-01T00:00:00Z
+tasks:
+- id: sec-design
+  title: 設計
+  children:
+  - id: t-arch
+    title: アーキテクチャ確定 (in-process HTTP vs stdio 別プロセス)
+    estimateHours: 4
+    notes: |
+      project-mcp-roadmap の方針: HTTP/SSE を推奨、Kestrel in-process ホスト。
+      stdio 別プロセス案は配線が倍になるので却下したが、
+      Claude Desktop 側の対応状況で再検討の余地はある。
+  - id: t-tools
+    title: MCP ツール定義 (get_document / propose_changes / get_pending_summary)
+    estimateHours: 3
+    notes: |
+      propose_changes は同期 await 方式で、AI から見ると1回呼んで結果を待つだけ。
+      get_pending_summary はフォールバック用。
+  - id: t-diff-model
+    title: Diff データモデル設計 (PendingChange, FieldDiffs)
+    estimateHours: 3
+  - id: t-approval
+    title: 承認フロー設計 (all-or-nothing 一括承認)
+    estimateHours: 2
+    notes: 個別承認は v0.3 で検討。
+- id: sec-server
+  title: MCP サーバー基盤
+  children:
+  - id: t-nuget
+    title: ModelContextProtocol NuGet 導入 と依存追加
+    estimateHours: 1
+  - id: t-kestrel
+    title: Kestrel in-process ホスト起動 (localhost 任意ポート)
+    estimateHours: 4
+    notes: WPF プロセス内で ASP.NET Core を起こす。UI スレッドと干渉しない構成に。
+  - id: t-lifecycle
+    title: サーバー起動/停止のライフサイクル管理 (App.OnStartup / OnExit)
+    estimateHours: 2
+  - id: t-registration
+    title: MCP tool 登録の骨組み
+    estimateHours: 3
+- id: sec-tools
+  title: MCP ツール実装
+  children:
+  - id: t-get-doc
+    title: get_document ツール (読取専用、現在の WbsDocument を返す)
+    estimateHours: 2
+  - id: t-propose
+    title: propose_changes ツール (提案受付 + 承認/却下を await して返す)
+    estimateHours: 6
+    notes: |
+      TaskCompletionSource で承認/却下シグナルを待つ。
+      タイムアウト (デフォルト 5分) 到達で却下扱い。
+  - id: t-summary
+    title: get_pending_summary ツール (現在ペンディング中の変更概要)
+    estimateHours: 2
+  - id: t-errors
+    title: エラー / タイムアウト処理 + ロギング
+    estimateHours: 3
+- id: sec-diff
+  title: Diff エンジン
+  children:
+  - id: t-compare
+    title: WbsDocument 比較 (id ベース照合、Guid が安定していることを前提)
+    estimateHours: 4
+  - id: t-pending
+    title: PendingChange 生成 (Op=Add/Update/Delete + FieldDiffs)
+    estimateHours: 6
+  - id: t-subtree
+    title: ネスト subtree の Add / Delete をまとめて1つの PendingChange に
+    estimateHours: 4
+  - id: t-diff-test
+    title: Unit test (round-trip / 順序入れ替え / subtree の挙動)
+    estimateHours: 4
+- id: sec-ui
+  title: Diff 承認 UI
+  children:
+  - id: t-panel
+    title: Diff Panel の XAML レイアウト (右サイドバーに追加)
+    estimateHours: 4
+  - id: t-colors
+    title: 追加/削除/変更の色分け (緑/赤/オレンジ、既存パレット準拠)
+    estimateHours: 3
+  - id: t-approve-btn
+    title: 承認 / 却下ボタンと確認フロー
+    estimateHours: 3
+  - id: t-apply
+    title: 承認時の PendingChanges → Document 反映処理
+    estimateHours: 4
+  - id: t-notify
+    title: サーバー側 await 中コールへの結果通知 (TaskCompletionSource.SetResult)
+    estimateHours: 3
+- id: sec-settings-docs
+  title: 設定 UI + ドキュメント
+  children:
+  - id: t-toggle
+    title: MCP サーバー ON/OFF トグル (プロパティパネル外の設定エリア)
+    estimateHours: 2
+  - id: t-port
+    title: リッスンポート表示 (Claude Code 用に URL コピー可)
+    estimateHours: 2
+  - id: t-readme
+    title: README に MCP セクション追記
+    estimateHours: 2
+  - id: t-mcp-json
+    title: Claude Code 側の登録手順 (mcp.json 例) を docs/ に配置
+    estimateHours: 2

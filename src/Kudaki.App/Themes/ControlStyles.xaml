@@ -57,7 +57,8 @@
         <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <!-- 行の Grid が全幅に広がって、右側の数値列が階層深さに関係なく揃うようにする。 -->
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
