@@ -109,8 +109,20 @@ public partial class App : Application
         {
             if (MainWindow?.DataContext is MainViewModel vm)
             {
-                await vm.RestoreOpenDocumentsAsync().ConfigureAwait(true);
-                vm.EnablePersistWatcher();
+                // Restore が個別 path の例外 (例: YAML パース失敗) で throw した場合でも
+                // watcher が有効化されないと settings.json が更新されなくなるので finally で確実に呼ぶ。
+                try
+                {
+                    await vm.RestoreOpenDocumentsAsync().ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Kudaki.Restore] failed: {ex}");
+                }
+                finally
+                {
+                    vm.EnablePersistWatcher();
+                }
             }
         }));
 

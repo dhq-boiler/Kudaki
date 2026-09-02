@@ -144,7 +144,15 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var path in settings.OpenDocuments)
         {
             if (!File.Exists(path)) continue;
-            await OpenInNewTabAsync(path).ConfigureAwait(true);
+            try
+            {
+                await OpenInNewTabAsync(path).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                // 個別 file の失敗 (YAML パース etc.) が全 tab 復元を停止しないよう吸収
+                System.Diagnostics.Debug.WriteLine($"[Kudaki.Restore] failed to open {path}: {ex}");
+            }
         }
 
         if (settings.ActiveDocumentPath is not null)
