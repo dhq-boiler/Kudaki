@@ -31,7 +31,8 @@ public partial class MainWindow : Window
             new WpfFileDialogService(this),
             new WpfUpdatePromptService(this),
             new WpfPreferencesDialogService(this, app.LanguageService),
-            new WpfConfirmDialogService(this));
+            new WpfConfirmDialogService(this),
+            app.SettingsStore);
         vm.SetArrowDiagramService(new WpfArrowDiagramService(this));
         DataContext = vm;
         MainViewModel.Current = vm;

@@ -26,10 +26,18 @@ public partial class App : Application
     // 2 個目からの「開くファイル」や「アクティブ化」要求を受け取る。
     private SingleInstanceCoordinator? _singleInstance;
 
+    // AppSettings の永続化 store。LanguageService と MainViewModel (タブ復元) の両方が共有する。
+    // 片方が Save するときは Load → 部分上書き → Save の順で他方の field を維持する。
+    public IAppSettingsStore SettingsStore { get; } = new JsonAppSettingsStore();
+
     // 表示言語サービス。起動時に settings.json をロードして
     // DefaultThreadCurrentUICulture を当てるため、MainWindow ctor より前に Initialize する。
-    public ILanguageService LanguageService { get; } =
-        new LanguageService(new JsonAppSettingsStore());
+    public ILanguageService LanguageService { get; }
+
+    public App()
+    {
+        LanguageService = new LanguageService(SettingsStore);
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -93,6 +101,17 @@ public partial class App : Application
             }
         });
 
+        // 前回開いてたタブを復元 (t-tab-restore-on-launch)。MainWindow ctor 完了後に BeginInvoke で
+        // キューに積む。同 path の重複は OpenInNewTabAsync 側で防ぐので、後段の起動 arg と被っても
+        // 1 タブに収まる。
+        Dispatcher.BeginInvoke(new System.Action(async () =>
+        {
+            if (MainWindow?.DataContext is MainViewModel vm)
+            {
+                await vm.RestoreOpenDocumentsAsync().ConfigureAwait(true);
+            }
+        }));
+
         if (!hasStartupFile) return;
         var path = e.Args[0];
 
@@ -109,6 +128,20 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // 開いてるタブ一覧を settings.json に永続化 (t-tab-restore-on-launch)。
+        // Shutdown フローの最初にやる (crash 時は失われる、shutdown 経由なら次回復元される)。
+        try
+        {
+            if (MainWindow?.DataContext is MainViewModel vm)
+            {
+                vm.PersistOpenDocuments();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Kudaki.Tabs] persist failed: {ex}");
+        }
+
         // MCP サーバーを終了。ここで await できないので同期待ちに落とす。
         // McpHostService 側で 2s の強制打ち切り timeout を持たせているが、念のため
         // OnExit 側でも 3s の Wait timeout を掛けてプロセスが hang しないようにする。

@@ -7,11 +7,19 @@ using Kudaki.App.Models;
 namespace Kudaki.App.Services;
 
 // アプリ全体の設定 (ドキュメントに紐付かないもの)。
-// 現状は Language のみ。将来 (診断ログ on/off や MCP port など) はここに増やす。
+// 現状は Language + タブ復元。将来 (診断ログ on/off や MCP port など) はここに増やす。
 public sealed class AppSettings
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public AppLanguage Language { get; set; } = AppLanguage.System;
+
+    // v0.3 t-tab-restore-on-launch: 起動時に復元するタブ (絶対パス列、開かれた順)。
+    // null / 空リストなら復元しない。壊れたファイルはスキップして継続。
+    public System.Collections.Generic.List<string> OpenDocuments { get; set; } = new();
+
+    // v0.3 t-tab-restore-on-launch: 前回アクティブだったタブのパス。復元後に該当タブへ切替。
+    // null なら最後に開いた doc がそのままアクティブ。
+    public string? ActiveDocumentPath { get; set; }
 }
 
 public interface IAppSettingsStore

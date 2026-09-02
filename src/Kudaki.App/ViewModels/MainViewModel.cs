@@ -31,6 +31,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IUpdatePromptService _updatePrompt;
     private readonly IPreferencesDialogService _preferencesDialog;
     private readonly IConfirmDialogService _confirm;
+    private readonly IAppSettingsStore _settingsStore;
 
     // 開いてるドキュメント一覧 (現状は常に 1 個)。t-tab-control で TabControl.ItemsSource に bind する。
     public ObservableCollection<DocumentViewModel> Documents { get; } = new();
@@ -50,12 +51,14 @@ public sealed partial class MainViewModel : ObservableObject
         IFileDialogService dialogs,
         IUpdatePromptService updatePrompt,
         IPreferencesDialogService preferencesDialog,
-        IConfirmDialogService confirm)
+        IConfirmDialogService confirm,
+        IAppSettingsStore settingsStore)
     {
         _dialogs = dialogs;
         _updatePrompt = updatePrompt;
         _preferencesDialog = preferencesDialog;
         _confirm = confirm;
+        _settingsStore = settingsStore;
 
         // 初期の空ドキュメントを開いた状態で起動する。
         var initial = new DocumentViewModel(dialogs);
@@ -126,6 +129,53 @@ public sealed partial class MainViewModel : ObservableObject
     // 起動引数 / Named Pipe forward からも同じ経路で来る (App.xaml.cs 経由)。
     [RelayCommand]
     internal Task LoadFromPathAsync(string path) => OpenInNewTabAsync(path);
+
+    // ----- タブ復元 / 永続化 (t-tab-restore-on-launch) -----
+
+    // 起動時に settings.json の OpenDocuments を順次 open して、ActiveDocumentPath へ切替。
+    // App.OnStartup から MainWindow ctor 完了後に呼ぶ。壊れたファイルはスキップして継続。
+    // 起動 arg (hasStartupFile) の LoadFromPathAsync とは順序で共存する (OpenInNewTabAsync が
+    // 同 path 重複を防ぐので、arg と settings が被っても 1 タブに収まる)。
+    public async Task RestoreOpenDocumentsAsync()
+    {
+        var settings = _settingsStore.Load();
+        if (settings.OpenDocuments is null || settings.OpenDocuments.Count == 0) return;
+
+        foreach (var path in settings.OpenDocuments)
+        {
+            if (!File.Exists(path)) continue;
+            await OpenInNewTabAsync(path).ConfigureAwait(true);
+        }
+
+        if (settings.ActiveDocumentPath is not null)
+        {
+            var absActive = Path.GetFullPath(settings.ActiveDocumentPath);
+            var target = Documents.FirstOrDefault(d =>
+                d.CurrentFilePath is not null &&
+                string.Equals(Path.GetFullPath(d.CurrentFilePath), absActive, StringComparison.OrdinalIgnoreCase));
+            if (target is not null) ActiveDocument.Value = target;
+        }
+    }
+
+    // App.OnExit で呼ぶ。Documents の全 path と現アクティブ path を settings.json に書き出す。
+    // Language 等の既存 field を保つため Load → 部分上書き → Save の順で操作する。
+    public void PersistOpenDocuments()
+    {
+        try
+        {
+            var settings = _settingsStore.Load();
+            settings.OpenDocuments = Documents
+                .Where(d => d.CurrentFilePath is not null)
+                .Select(d => d.CurrentFilePath!)
+                .ToList();
+            settings.ActiveDocumentPath = ActiveDocument.Value?.CurrentFilePath;
+            _settingsStore.Save(settings);
+        }
+        catch
+        {
+            // 保存失敗しても shutdown を止めない (次回起動で復元が空になるだけ)
+        }
+    }
 
     // t-tab-close: タブヘッダの × ボタンから呼ばれる。dirty なら保存確認、
     // 最後のタブは削除せず空 doc にリセットしてアプリ終了を防ぐ。
