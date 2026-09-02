@@ -1,8 +1,10 @@
 using System.Windows;
+using Kudaki.App.Views;
 
 namespace Kudaki.App.Services;
 
-// MessageBox に触れる唯一の実装。VM は IConfirmDialogService だけを知る。
+// カスタム ConfirmDialog (ダークテーマ) を表示する実装。VM は IConfirmDialogService だけを知る。
+// OS ネイティブ MessageBox はダークパレットに追従しないため、Views/ConfirmDialog で自前実装した。
 public sealed class WpfConfirmDialogService : IConfirmDialogService
 {
     private readonly Window _owner;
@@ -10,17 +12,8 @@ public sealed class WpfConfirmDialogService : IConfirmDialogService
 
     public ConfirmResult ShowSaveDiscardCancel(string message, string title)
     {
-        var result = MessageBox.Show(
-            _owner,
-            message,
-            title,
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Question);
-        return result switch
-        {
-            MessageBoxResult.Yes => ConfirmResult.Save,
-            MessageBoxResult.No => ConfirmResult.Discard,
-            _ => ConfirmResult.Cancel,
-        };
+        var dlg = new ConfirmDialog(title, message) { Owner = _owner };
+        dlg.ShowDialog();
+        return dlg.Result;
     }
 }

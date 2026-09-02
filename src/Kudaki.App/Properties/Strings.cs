@@ -135,6 +135,9 @@ public static class Strings
     public static string CloseTab_Confirm_Title => Get("CloseTab_Confirm_Title");
     public static string CloseTab_Confirm_Message_Format => Get("CloseTab_Confirm_Message_Format");
     public static string CloseTab_Confirm_Message_Untitled => Get("CloseTab_Confirm_Message_Untitled");
+    public static string CloseTab_Button_Save => Get("CloseTab_Button_Save");
+    public static string CloseTab_Button_Discard => Get("CloseTab_Button_Discard");
+    public static string CloseTab_Button_Cancel => Get("CloseTab_Button_Cancel");
     public static string TabHeader_CloseTooltip => Get("TabHeader_CloseTooltip");
 
     // Arrow diagram
