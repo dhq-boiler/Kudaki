@@ -16,16 +16,18 @@ public sealed class WpfPreferencesDialogService : IPreferencesDialogService
 {
     private readonly Window _owner;
     private readonly ILanguageService _languageService;
+    private readonly IAppSettingsStore _settingsStore;
 
-    public WpfPreferencesDialogService(Window owner, ILanguageService languageService)
+    public WpfPreferencesDialogService(Window owner, ILanguageService languageService, IAppSettingsStore settingsStore)
     {
         _owner = owner;
         _languageService = languageService;
+        _settingsStore = settingsStore;
     }
 
     public bool Show()
     {
-        var vm = new PreferencesViewModel(_languageService);
+        var vm = new PreferencesViewModel(_languageService, _settingsStore);
         var dialog = new PreferencesWindow(vm) { Owner = _owner };
         var result = dialog.ShowDialog();
         return result == true;

@@ -15,6 +15,7 @@ namespace Kudaki.App.ViewModels;
 public sealed partial class PreferencesViewModel : ObservableObject
 {
     private readonly ILanguageService _languageService;
+    private readonly IAppSettingsStore _settingsStore;
 
     // View 側で Close を呼び戻す用。true = OK, false = Cancel。
     public Action<bool>? RequestClose { get; set; }
@@ -42,13 +43,21 @@ public sealed partial class PreferencesViewModel : ObservableObject
 
     [ObservableProperty] private LanguageOption? _selectedLanguageOption;
 
-    public PreferencesViewModel(ILanguageService languageService)
+    // ---- MCP カテゴリ (v03-mcp-auto-apply t-settings-model) ----
+    public string McpAutoApplyLabel => Strings.Preferences_Mcp_AutoApply_Label;
+    public string McpAutoApplyHint => Strings.Preferences_Mcp_AutoApply_Hint;
+
+    [ObservableProperty] private bool _autoApplyEnabled;
+
+    public PreferencesViewModel(ILanguageService languageService, IAppSettingsStore settingsStore)
     {
         _languageService = languageService;
+        _settingsStore = settingsStore;
 
         Categories = new[]
         {
             new PreferencesCategory(Strings.Preferences_Category_General, "general"),
+            new PreferencesCategory(Strings.Preferences_Category_Mcp, "mcp"),
         };
         _selectedCategory = Categories[0];
 
@@ -63,15 +72,24 @@ public sealed partial class PreferencesViewModel : ObservableObject
             }
         }
         _selectedLanguageOption ??= LanguageOptions[0];
+
+        // 現在の AutoApplyPolicy を読み込み
+        _autoApplyEnabled = _settingsStore.Load().AutoApply.Enabled;
     }
 
     [RelayCommand]
     private void Ok()
     {
+        // Language 側は LanguageService.Apply が内部で settings.Load → Save してくれる。
         if (SelectedLanguageOption is not null)
         {
             _languageService.Apply(SelectedLanguageOption.Value);
         }
+        // AutoApply 側は自分で settings.Load → 部分上書き → Save (LanguageService と同 pattern)。
+        var settings = _settingsStore.Load();
+        settings.AutoApply.Enabled = AutoApplyEnabled;
+        _settingsStore.Save(settings);
+
         RequestClose?.Invoke(true);
     }
 

@@ -167,6 +167,11 @@
   <data name="CloseTab_Button_Cancel" xml:space="preserve"><value>キャンセル</value></data>
   <data name="TabHeader_CloseTooltip" xml:space="preserve"><value>タブを閉じる</value></data>
 
+  <!-- Preferences: MCP category (v03-mcp-auto-apply t-settings-model) -->
+  <data name="Preferences_Category_Mcp" xml:space="preserve"><value>MCP</value></data>
+  <data name="Preferences_Mcp_AutoApply_Label" xml:space="preserve"><value>AI の軽量な変更を自動反映</value></data>
+  <data name="Preferences_Mcp_AutoApply_Hint" xml:space="preserve"><value>有効にすると、残時間の更新やメモの追記だけを含む提案は承認 UI をスキップして即反映されます。タスクの追加・削除、見積・タイトル・担当者・期限の変更などは必ず承認が要ります。</value></data>
+
   <data name="Arrow_Title_Format" xml:space="preserve"><value>アローダイアグラム — {0}</value></data>
   <data name="Arrow_Legend_Line1" xml:space="preserve"><value>AON 記法 (箱=タスク、矢印=先行→後続、FS)。</value></data>
   <data name="Arrow_Legend_Line2" xml:space="preserve"><value>印はこの階層の外に先行タスクを持つ (親 P の外部からの依存があるタスク)。</value></data>

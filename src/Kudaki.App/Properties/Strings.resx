@@ -181,6 +181,11 @@
   <data name="CloseTab_Button_Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="TabHeader_CloseTooltip" xml:space="preserve"><value>Close tab</value></data>
 
+  <!-- Preferences: MCP category (v03-mcp-auto-apply t-settings-model) -->
+  <data name="Preferences_Category_Mcp" xml:space="preserve"><value>MCP</value></data>
+  <data name="Preferences_Mcp_AutoApply_Label" xml:space="preserve"><value>Auto-apply lightweight AI changes</value></data>
+  <data name="Preferences_Mcp_AutoApply_Hint" xml:space="preserve"><value>When enabled, proposals that only update RemainingHours or append to Notes bypass the approval UI. Add/Delete tasks, EstimateHours, Title, Assignee, DueDate and other changes always require approval.</value></data>
+
   <!-- Arrow diagram -->
   <data name="Arrow_Title_Format" xml:space="preserve"><value>Arrow Diagram — {0}</value></data>
   <data name="Arrow_Legend_Line1" xml:space="preserve"><value>AON notation (box = task, arrow = predecessor → successor, FS).</value></data>

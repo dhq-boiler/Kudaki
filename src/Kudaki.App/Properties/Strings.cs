@@ -140,6 +140,11 @@ public static class Strings
     public static string CloseTab_Button_Cancel => Get("CloseTab_Button_Cancel");
     public static string TabHeader_CloseTooltip => Get("TabHeader_CloseTooltip");
 
+    // Preferences: MCP category (v03-mcp-auto-apply t-settings-model)
+    public static string Preferences_Category_Mcp => Get("Preferences_Category_Mcp");
+    public static string Preferences_Mcp_AutoApply_Label => Get("Preferences_Mcp_AutoApply_Label");
+    public static string Preferences_Mcp_AutoApply_Hint => Get("Preferences_Mcp_AutoApply_Hint");
+
     // Arrow diagram
     public static string Arrow_Title_Format => Get("Arrow_Title_Format");
     public static string Arrow_Legend_Line1 => Get("Arrow_Legend_Line1");
