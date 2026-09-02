@@ -77,9 +77,15 @@ public static class KudakiMcpTools
     [Description(
         "Propose a full replacement of a specific WBS document. Both `documentId` (absolute file path from " +
         "list_documents) and `yaml` (full replacement content, same format get_document returns) are required. " +
-        "Kudaki diffs it against that document, shows the diff in that document's tab review UI, and waits " +
-        "for approval or rejection (default timeout: 5 minutes). Returns a JSON string with a `result` field: " +
-        "`approved` / `rejected` / `timeout` / `no_changes` / `unknown_document` / `error`.")]
+        "Kudaki diffs it against that document. Behavior depends on user's auto-apply policy AND whether the " +
+        "change qualifies as \"light\" (RemainingHours updates or Notes append-only): " +
+        "if enabled and all diffs qualify, applies immediately without approval UI (returns `auto_applied`); " +
+        "otherwise shows the diff in that document's tab review UI and waits for approval or rejection " +
+        "(default timeout: 5 minutes). Use `requireApproval=true` to force manual approval regardless of " +
+        "the auto-apply policy (recommended for changes you want the user to explicitly review). " +
+        "You CANNOT loosen the policy from the AI side; only tighten (this is by design). " +
+        "Returns a JSON string with a `result` field: `auto_applied` / `approved` / `rejected` / `timeout` / " +
+        "`no_changes` / `unknown_document` / `error`.")]
     public static async Task<string> ProposeChanges(
         [Description("Absolute file path of the target document (from list_documents). Required.")]
         string documentId,
@@ -88,7 +94,11 @@ public static class KudakiMcpTools
         [Description("Optional caller identification, shown to the user in the review UI (e.g. 'Claude Code')")]
         string source = "AI agent",
         [Description("Optional approval timeout in seconds (default 300 = 5 minutes)")]
-        int timeoutSeconds = 300)
+        int timeoutSeconds = 300,
+        [Description("If true, force manual approval UI even when the change qualifies for auto-apply. " +
+                     "AI can only tighten the policy (not loosen it), so setting this to false has no effect " +
+                     "when the user has auto-apply disabled.")]
+        bool requireApproval = false)
     {
         var doc = DocumentRegistry.Instance.Resolve(documentId);
         if (doc is null)
@@ -119,6 +129,26 @@ public static class KudakiMcpTools
             Source = source,
             Proposed = proposed,
         };
+
+        // v03-mcp-auto-apply: ユーザー設定 + AI 側 requireApproval + 分類器の全条件が揃ったら
+        // 承認 UI をスキップして即適用。AI 側は緩められないので requireApproval は tighten 専用。
+        var app = System.Windows.Application.Current as App;
+        var autoApplyEnabled = app?.SettingsStore.Load().AutoApply.Enabled ?? false;
+        if (autoApplyEnabled && !requireApproval && set.IsAllAutoApplicable)
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is null || dispatcher.CheckAccess())
+            {
+                await doc.ApplyProposedDocumentAsync(proposed).ConfigureAwait(false);
+            }
+            else
+            {
+                var inner = await dispatcher.InvokeAsync(
+                    () => doc.ApplyProposedDocumentAsync(proposed)).Task.ConfigureAwait(false);
+                await inner.ConfigureAwait(false);
+            }
+            return $"{{\"result\":\"auto_applied\",\"changesCount\":{changes.Count}}}";
+        }
 
         var timeout = timeoutSeconds > 0 ? TimeSpan.FromSeconds(timeoutSeconds) : (TimeSpan?)null;
         var result = await doc.PendingService.SubmitAsync(set, timeout).ConfigureAwait(false);
