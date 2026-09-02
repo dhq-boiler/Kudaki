@@ -72,11 +72,8 @@ public partial class MainWindow : Window
             }
         });
 
-        // Diff Overlay の可視制御。CurrentPendingSet が入ってきたら表示、抜けたら隠す。
-        vm.CurrentPendingSet.Subscribe(set =>
-        {
-            DiffOverlay.Visibility = set is not null ? Visibility.Visible : Visibility.Collapsed;
-        });
+        // Diff Overlay の Visibility は XAML 側で ActiveDocument.Value.CurrentPendingSet.Value を bind してるので code-behind Subscribe は不要。
+        // 旧実装 (Subscribe 経由) は初回 Subscribe 時点の doc instance に固定される問題があった (tab 切替に追従しない)。
 
         ((App)Application.Current).ScheduleUpdateCheck();
     }

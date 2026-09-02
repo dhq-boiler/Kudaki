@@ -693,14 +693,15 @@
     </DockPanel>
 
     <!-- ==================== Diff Overlay (MCP propose_changes レビュー) ==================== -->
-    <!-- DataContext を ActiveDocument.Value に切り替え、per-doc の CurrentPendingSet を bind する。
-         v0.3 で MCP propose_changes を documentId 単位に分離した際にもここが正しい doc に届く土台。
-         Visibility は Landing と同じ理由で code-behind の Subscribe で切り替える。 -->
+    <!-- DataContext を ActiveDocument.Value に、Visibility も同じ ActiveDocument.Value.CurrentPendingSet.Value に紐付ける。
+         これで tab 切替に追従して、非アクティブ doc の proposal は「そのタブに切り替えたときだけ」表示される。
+         旧実装 (code-behind vm.CurrentPendingSet.Subscribe) は Subscribe 時点の doc instance に固定されるため
+         tab 切替後に Visibility と中身が別 doc を見てしまう問題があった (2026-09-02 発覚 → 修正)。 -->
     <Grid x:Name="DiffOverlay"
           DataContext="{Binding ActiveDocument.Value}"
           Panel.ZIndex="90"
           Background="#B3000000"
-          Visibility="Collapsed">
+          Visibility="{Binding CurrentPendingSet.Value, Converter={StaticResource NullToVis}}">
         <Border Background="{DynamicResource ContainerBackground}"
                 BorderBrush="{DynamicResource ControlDefaultBorderBrush}"
                 BorderThickness="1"
