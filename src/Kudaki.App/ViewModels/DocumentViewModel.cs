@@ -47,16 +47,41 @@ public sealed partial class DocumentViewModel : ObservableObject
         SelectablePredecessors { get; } = new(Array.Empty<TaskNodeViewModel>());
 
     // Diff Overlay に晒す現在レビュー中の Set。
-    // t-doc-diffoverlay-routing で「MCP 通知 → 該当 doc の CurrentPendingSet」に振り分けるルーティングを実装。
-    // 現状 (t-doc-vm-extract) は MainViewModel 側でシングルトン PendingChangesService を購読して
-    // ActiveDocument.CurrentPendingSet に流し込むだけの暫定実装。
+    // v0.3 t-doc-diffoverlay-routing 完了: PendingService は per-doc の instance で、
+    // MCP からの propose_changes は DocumentRegistry.Resolve(documentId) 経由で
+    // この instance だけに流れ込む (他タブへの混線なし)。
     public BindableReactiveProperty<Services.Mcp.PendingChangeSet?> CurrentPendingSet { get; } = new(null);
+
+    // per-doc の承認キュー。MCP tool の propose_changes は DocumentRegistry から
+    // 該当 doc を解決して doc.PendingService.SubmitAsync を呼ぶ。
+    public Services.Mcp.PendingChangesService PendingService { get; } = new();
 
     public DocumentViewModel(IFileDialogService dialogs)
     {
         _dialogs = dialogs;
         LoadDocument(new WbsDocument());
         SelectedTask.Subscribe(_ => RecomputeSelectablePredecessors());
+        WireOwnPendingQueue();
+    }
+
+    // 自 PendingService.Pending の先頭を CurrentPendingSet に晒す。
+    // v0.3 で MainViewModel からこの責務を DocumentViewModel に移した (per-doc 化)。
+    private void WireOwnPendingQueue()
+    {
+        UpdateCurrentPending();
+        ((System.Collections.Specialized.INotifyCollectionChanged)PendingService.Pending)
+            .CollectionChanged += (_, _) => UpdateCurrentPending();
+
+        void UpdateCurrentPending()
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is not null && !dispatcher.CheckAccess())
+            {
+                dispatcher.BeginInvoke(new Action(UpdateCurrentPending));
+                return;
+            }
+            CurrentPendingSet.Value = PendingService.Pending.Count > 0 ? PendingService.Pending[0] : null;
+        }
     }
 
     // TreeView.ItemsSource がこれをバインドする。仮想ルート方式で top-level も VM 化。
@@ -105,7 +130,7 @@ public sealed partial class DocumentViewModel : ObservableObject
     {
         var set = CurrentPendingSet.Value;
         if (set is null) return;
-        Services.Mcp.PendingChangesService.Instance.Approve(set.Id);
+        PendingService.Approve(set.Id);
     }
 
     [RelayCommand]
@@ -113,7 +138,7 @@ public sealed partial class DocumentViewModel : ObservableObject
     {
         var set = CurrentPendingSet.Value;
         if (set is null) return;
-        Services.Mcp.PendingChangesService.Instance.Reject(set.Id);
+        PendingService.Reject(set.Id);
     }
 
     private void RecomputeSelectablePredecessors()

@@ -30,19 +30,18 @@ public sealed class PendingChangeSet
         = new(TaskCreationOptions.RunContinuationsAsynchronously);
 }
 
-// 提案の投入・承認/却下シグナルを一元管理する singleton。
+// 提案の投入・承認/却下シグナルを扱う per-document のキュー。
+// v0.3 でシングルトンをやめて DocumentViewModel が自前 instance を保持する形に変更した
+// (複数タブへの同時 propose が混線しないように per-doc に振り分ける)。
 // - Kestrel の別スレッドから SubmitAsync (承認まで await)
 // - UI スレッドから Approve / Reject
-// - UI 側は Pending コレクションを ItemsSource にバインドする (v0.2 の Diff Panel)
+// - UI 側は Pending コレクションを ItemsSource にバインドする
 public sealed class PendingChangesService
 {
-    private static readonly Lazy<PendingChangesService> _instance = new(() => new PendingChangesService());
-    public static PendingChangesService Instance => _instance.Value;
-
     private readonly ObservableCollection<PendingChangeSet> _pending = new();
     public ReadOnlyObservableCollection<PendingChangeSet> Pending { get; }
 
-    private PendingChangesService()
+    public PendingChangesService()
     {
         Pending = new ReadOnlyObservableCollection<PendingChangeSet>(_pending);
     }

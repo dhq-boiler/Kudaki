@@ -59,7 +59,8 @@ public sealed partial class MainViewModel : ObservableObject
         Documents.Add(initial);
         ActiveDocument.Value = initial;
 
-        WirePendingChangesQueue();
+        // MCP tool 側から Documents を documentId で解決するために self-register する。
+        Services.Mcp.DocumentRegistry.Instance.Bind(this);
     }
 
     // MCP サーバー (Kudaki.App プロセス内) が現在の VM を掴むための単純ブリッジ。
@@ -67,38 +68,6 @@ public sealed partial class MainViewModel : ObservableObject
     // 「Kudaki プロセスに MainViewModel は常に1個」を活用してこれで足りる。
     // MainWindow の ctor から一度だけセットする。
     public static MainViewModel? Current { get; internal set; }
-
-    // MCP propose_changes 経由で PendingChangesService.Pending に投入された PendingChangeSet を
-    // ActiveDocument.CurrentPendingSet に流し込む。
-    // t-doc-diffoverlay-routing でこの単純ルーティングを「documentId → 該当 doc」に置き換える。
-    private void WirePendingChangesQueue()
-    {
-        var svc = Services.Mcp.PendingChangesService.Instance;
-        UpdateActiveDocumentPending();
-        ((INotifyCollectionChanged)svc.Pending).CollectionChanged += (_, _) => UpdateActiveDocumentPending();
-
-        void UpdateActiveDocumentPending()
-        {
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (dispatcher is not null && !dispatcher.CheckAccess())
-            {
-                dispatcher.BeginInvoke(new Action(UpdateActiveDocumentPending));
-                return;
-            }
-            var target = ActiveDocument.Value;
-            if (target is null) return;
-            target.CurrentPendingSet.Value = svc.Pending.Count > 0 ? svc.Pending[0] : null;
-        }
-    }
-
-    // MCP propose_changes 経由で承認された Document を ActiveDocument に反映する。
-    // Kestrel 側から UI thread に marshal 済みで呼ばれる。
-    public void ApplyProposedDocument(WbsDocument proposed)
-        => ActiveDocument.Value?.ApplyProposedDocument(proposed);
-
-    // MCP get_document 用: ActiveDocument の YAML スナップショットを返す。
-    public string GetDocumentYamlSnapshot()
-        => ActiveDocument.Value?.GetDocumentYamlSnapshot() ?? string.Empty;
 
     // 起動シーケンスの各フェーズが呼ぶ進捗レポート。100 に達したら Landing を消す。
     // UI スレッド外から呼ばれる可能性があるので必要なら Dispatcher で戻す。
