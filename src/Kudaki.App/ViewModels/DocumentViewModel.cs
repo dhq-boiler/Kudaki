@@ -188,9 +188,64 @@ public sealed partial class DocumentViewModel : ObservableObject
         // (第 1 パスの木構築時点では兄弟や他サブツリーの VM がまだ生成されていない)
         ResolvePredecessorReferences(_rootVm);
 
+        // 手動編集で IsDirty が立つように subtree 全体を購読する。
+        // v0.3 t-tab-close で判明した挙動穴 (タスク編集しても dirty flag が動かない = タブ * が付かない
+        // = close 確認ダイアログも出ない) の修正。Load 中の Predecessors.Add で dirty が一時的に true に
+        // なるので、購読は先にセットしてこの後の IsDirty.Value = false で確実にリセットする。
+        HookDirtyTracking(_rootVm);
+
         OnPropertyChanged(nameof(RootTasks));
         SelectedTask.Value = null;
         IsDirty.Value = false;
+    }
+
+    // 木の全ノードの PropertyChanged / Children.CollectionChanged / Predecessors.CollectionChanged を
+    // 購読して、変化があれば IsDirty = true にする。Children.Add で新規追加された VM も再帰的に購読。
+    // LoadDocument で _rootVm が丸ごと差し替わるので古い購読は自然に外れる (root を持つ handler 経由の
+    // 参照だけ残るが root は _rootVm 以外から参照されないので GC される)。
+    private void HookDirtyTracking(TaskNodeViewModel root)
+    {
+        foreach (var vm in DependencyValidator.EnumerateTasks(root))
+        {
+            SubscribeVmForDirty(vm);
+        }
+        // 仮想ルート (root) 自身の Children (top-level タスク) の Add/Remove も購読
+        root.Children.CollectionChanged += OnChildrenChangedForDirty;
+    }
+
+    private void SubscribeVmForDirty(TaskNodeViewModel vm)
+    {
+        vm.PropertyChanged += OnVmPropertyChangedForDirty;
+        vm.Children.CollectionChanged += OnChildrenChangedForDirty;
+        vm.Predecessors.CollectionChanged += OnPredecessorsChangedForDirty;
+    }
+
+    private void OnVmPropertyChangedForDirty(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Title / EstimateHours / RemainingHours / Assignee / DueDate / Notes すべて OnPropertyChanged 経由。
+        // rolled-up 系は derived で notify されないので誤検知の心配なし。
+        IsDirty.Value = true;
+    }
+
+    private void OnChildrenChangedForDirty(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        IsDirty.Value = true;
+        // 新規追加された VM を再帰的に購読 (深いサブツリーも捕捉)
+        if (e.NewItems is not null)
+        {
+            foreach (TaskNodeViewModel added in e.NewItems)
+            {
+                foreach (var descendant in DependencyValidator.EnumerateTasks(added))
+                {
+                    SubscribeVmForDirty(descendant);
+                }
+            }
+        }
+    }
+
+    private void OnPredecessorsChangedForDirty(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        IsDirty.Value = true;
     }
 
     private static void ResolvePredecessorReferences(TaskNodeViewModel root)
