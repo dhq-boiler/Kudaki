@@ -1,0 +1,88 @@
+# Kudaki release automation via Velopack.
+#
+# トリガー: dhq-boiler/Kudaki repo に "v*" tag を push すると発火。
+# 成果物:
+#   - Kudaki repo の Release に vpk が生成する Kudaki-win-Setup.exe /
+#     Kudaki-win-Portable.zip / releases.win.json を upload。
+#   - README の hero CTA は `releases/latest/download/Kudaki-win-Setup.exe`
+#     の固定 URL を指せば良い (Velopack が latest tag に必ず同名で置いてくれる)。
+#
+# 権限:
+#   - contents: write ─ GITHUB_TOKEN で Release を作成・upload するために必要。
+#     追加の PAT 不要 (public repo の自 repo 内で完結)。
+#
+# Kata (C:\Git\ClassDesign) の release.yml から移植。Pro channel job は Kudaki には無いので release job のみ。
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Install vpk tool
+        run: dotnet tool install -g vpk
+
+      - name: Extract version (strip leading v)
+        id: ver
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building version: ${VERSION}"
+
+      - name: Publish Kudaki.App (Release, self-contained win-x64)
+        run: |
+          dotnet publish src/Kudaki.App/Kudaki.App.csproj \
+            -c Release \
+            -r win-x64 \
+            --self-contained true \
+            -o publish
+
+      # 差分 (delta) 更新を作るには前 release の nupkg を download する必要がある。
+      # 初回 (前 release が Velopack 形式でない場合) は失敗するが
+      # continue-on-error で通す (full package のみ生成)。
+      - name: Download previous release for delta
+        continue-on-error: true
+        run: |
+          vpk download github \
+            --repoUrl https://github.com/dhq-boiler/Kudaki \
+            --token "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Pack (Setup.exe + Portable.zip + release feed)
+        # AssemblyName=Kudaki なので mainExe は Kudaki.exe。
+        # TFM は net10.0-windows (WPF)、Velopack の framework 指定は net10.0-x64-desktop。
+        run: |
+          vpk pack \
+            --packId Kudaki \
+            --packVersion "${{ steps.ver.outputs.version }}" \
+            --packDir publish \
+            --mainExe Kudaki.exe \
+            --framework net10.0-x64-desktop
+
+      - name: Upload to GitHub Release
+        run: |
+          vpk upload github \
+            --repoUrl https://github.com/dhq-boiler/Kudaki \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --tag "${GITHUB_REF#refs/tags/}" \
+            --publish \
+            --releaseName "Kudaki ${{ steps.ver.outputs.version }}"
