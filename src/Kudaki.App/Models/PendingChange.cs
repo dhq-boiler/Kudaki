@@ -12,6 +12,18 @@ public enum PendingChangeOp
     Delete,
 }
 
+// v03-mcp-auto-apply: 変更の重み分類。
+// Auto: 進捗更新やメモ追記など軽量なもの、ユーザー設定で承認 UI をスキップして即適用可能。
+// Manual: 承認 UI 必須 (タスク追加・削除、階層変更、Title / EstimateHours / DueDate / Assignee /
+//         Notes の書き換え・削除、Predecessors 変更、DocumentLevel 変更)。
+// 混在 (Auto と Manual が同 proposal 内に両方ある) 場合は Manual に倒す
+// (t-mixed-fallback、PendingChangeSet.IsAllAutoApplicable で判定)。
+public enum ChangeSeverity
+{
+    Auto,
+    Manual,
+}
+
 // Update のときに 1 フィールドあたりの Before → After を保持する。
 public sealed class FieldDiff
 {
@@ -33,4 +45,7 @@ public sealed class PendingChange
 
     // Op=Update のときのフィールド単位差分。Add/Delete では空。
     public IReadOnlyList<FieldDiff> FieldDiffs { get; init; } = Array.Empty<FieldDiff>();
+
+    // v03-mcp-auto-apply: この 1 変更を auto-apply して良いかの分類。DiffCalculator が判定。
+    public ChangeSeverity Severity { get; init; } = ChangeSeverity.Manual;
 }

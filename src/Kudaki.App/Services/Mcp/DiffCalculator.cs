@@ -57,7 +57,7 @@ public static class DiffCalculator
         var currentIds = new HashSet<string>(currentFlat.Keys);
         var proposedIds = new HashSet<string>(proposedFlat.Keys);
 
-        // Delete: current にあって proposed にない
+        // Delete: current にあって proposed にない → 常に Manual (承認必須)
         foreach (var id in currentIds.Except(proposedIds))
         {
             var entry = currentFlat[id];
@@ -67,10 +67,11 @@ public static class DiffCalculator
                 TaskId = id,
                 ParentId = entry.ParentId,
                 Before = entry.Node,
+                Severity = ChangeSeverity.Manual,
             });
         }
 
-        // Add: proposed にあって current にない
+        // Add: proposed にあって current にない → 常に Manual (承認必須)
         foreach (var id in proposedIds.Except(currentIds))
         {
             var entry = proposedFlat[id];
@@ -80,10 +81,11 @@ public static class DiffCalculator
                 TaskId = id,
                 ParentId = entry.ParentId,
                 After = entry.Node,
+                Severity = ChangeSeverity.Manual,
             });
         }
 
-        // Update: 両方にあってフィールド差分がある
+        // Update: 両方にあってフィールド差分がある → 分類器で Auto/Manual 判定
         foreach (var id in currentIds.Intersect(proposedIds))
         {
             var cur = currentFlat[id];
@@ -99,10 +101,53 @@ public static class DiffCalculator
                 Before = cur.Node,
                 After = prop.Node,
                 FieldDiffs = fieldDiffs,
+                Severity = ClassifyUpdate(fieldDiffs, cur.ParentId, prop.ParentId),
             });
         }
 
+        // ドキュメントレベル変更が既に List 先頭に入っていれば Manual (上の docFieldDiffs 分岐で追加された)
+        // に上書きしておく (デフォルト Manual なので実質何もしないが、意図の明示)
+        // → 現状 PendingChange の init-only + デフォルト Manual なので追加操作不要
+
         return changes;
+    }
+
+    // v03-mcp-auto-apply t-diff-classifier: Update 1 件を auto/manual に振り分ける。
+    // Kudaki の TaskNode field:
+    //   - Auto: RemainingHours (残時間更新), Notes 追記のみ (Before が After の prefix)
+    //   - Manual: 上記以外の全 field 変更、および ParentId 変更 (階層変更)
+    // 混在 (Auto field と Manual field が同 update 内) は Manual に倒す (1 つでも Manual field なら Manual)。
+    private static ChangeSeverity ClassifyUpdate(IReadOnlyList<FieldDiff> fieldDiffs, string? beforeParent, string? afterParent)
+    {
+        // ParentId 変更 = 階層変更 = 常に Manual
+        if (beforeParent != afterParent) return ChangeSeverity.Manual;
+
+        foreach (var fd in fieldDiffs)
+        {
+            if (!IsFieldAutoApplyable(fd)) return ChangeSeverity.Manual;
+        }
+        return fieldDiffs.Count > 0 ? ChangeSeverity.Auto : ChangeSeverity.Manual;
+    }
+
+    private static bool IsFieldAutoApplyable(FieldDiff fd) => fd.FieldName switch
+    {
+        // ParentId は既に上で分岐済みなので、ここに来ることは無い (念のため Manual)
+        "ParentId" => false,
+        nameof(TaskNode.RemainingHours) => true,
+        nameof(TaskNode.Notes) => IsNotesAppendOnly(fd.Before as string, fd.After as string),
+        // Title / EstimateHours / Assignee / DueDate / PredecessorIds は Manual
+        _ => false,
+    };
+
+    // 「追記のみ」= After が Before で始まる + After.Length > Before.Length。
+    // 書き換え / 削除 / 中間挿入 (Before が prefix にならないケース) は Manual に落ちる。
+    // Before が null / empty のときは「空 → 何か書いた」も追記扱いで Auto。
+    private static bool IsNotesAppendOnly(string? before, string? after)
+    {
+        var b = before ?? string.Empty;
+        var a = after ?? string.Empty;
+        if (a.Length <= b.Length) return false;  // 短くなってる = 削除 or 書き換え
+        return a.StartsWith(b, System.StringComparison.Ordinal);
     }
 
     private readonly record struct Entry(TaskNode Node, string? ParentId);

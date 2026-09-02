@@ -26,6 +26,10 @@ public sealed class PendingChangeSet
     // 承認されたときに MainViewModel に差し替える proposed WbsDocument。
     public WbsDocument Proposed { get; init; } = null!;
 
+    // v03-mcp-auto-apply t-mixed-fallback: 全 change が Auto なら true。
+    // 1 つでも Manual があれば false → 承認 UI に落とす (混在は安全側)。
+    public bool IsAllAutoApplicable => Changes.Count > 0 && Changes.All(c => c.Severity == ChangeSeverity.Auto);
+
     internal TaskCompletionSource<ApprovalResult> Completion { get; }
         = new(TaskCreationOptions.RunContinuationsAsynchronously);
 }
