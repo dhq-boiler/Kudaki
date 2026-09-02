@@ -326,10 +326,7 @@
         <!-- DiffOverlay は当面 MainWindow レベルに残す (ActiveDocument.Value を bind) -->
         <!-- t-doc-diffoverlay-routing で non-active タブの proposal は「タブ切替バッジ」で誘導する予定。 -->
         <TabControl ItemsSource="{Binding Documents}"
-                    SelectedItem="{Binding ActiveDocument.Value, Mode=TwoWay}"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="0">
+                    SelectedItem="{Binding ActiveDocument.Value, Mode=TwoWay}">
             <TabControl.ItemContainerStyle>
                 <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
                     <Setter Property="Header" Value="{Binding WindowTitle.Value}"/>

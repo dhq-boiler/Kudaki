@@ -731,4 +731,99 @@
         </Setter>
     </Style>
 
+    <!--  =========================================================
+          TabControl / TabItem  (v0.3 マルチドキュメントタブ用)
+          - WPF デフォルトは Windows ライトテーマ前提でダーク背景に浮くので retemplate
+          - タブヘッダは SidebarBackground、コンテンツは BackgroundColour で層を分ける
+          - 選択時: コンテンツ色まで一体化 + 下端 2px にアクセント色の下線
+          - VS Code / Visual Studio のタブ意匠に寄せる (project-ui-style)
+          ========================================================= -->
+
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="{DynamicResource BackgroundColour}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource SidebarBackground}"
+                                BorderBrush="{DynamicResource SubtleDividerBrush}"
+                                BorderThickness="0,0,0,1">
+                            <TabPanel IsItemsHost="True"
+                                      Panel.ZIndex="1"
+                                      Background="Transparent"
+                                      Margin="0"/>
+                        </Border>
+                        <Border Grid.Row="1"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="0">
+                            <ContentPresenter ContentSource="SelectedContent"/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Background" Value="{DynamicResource SidebarBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="14,7"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid>
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter x:Name="ContentSite"
+                                              ContentSource="Header"
+                                              Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <!-- アクティブタブの下端アクセント (2px) -->
+                        <Border x:Name="AccentUnderline"
+                                Height="2"
+                                VerticalAlignment="Bottom"
+                                Background="{DynamicResource PrimaryDefaultBackground}"
+                                Visibility="Collapsed"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BackgroundColour}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+                            <Setter TargetName="AccentUnderline" Property="Visibility" Value="Visible"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsSelected" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+                        </MultiTrigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
