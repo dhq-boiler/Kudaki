@@ -1,17 +1,22 @@
-# Kudaki release automation via Velopack.
+# Kudaki release automation.
 #
 # トリガー: dhq-boiler/Kudaki repo に "v*" tag を push すると発火。
-# 成果物:
-#   - Kudaki repo の Release に vpk が生成する Kudaki-win-Setup.exe /
-#     Kudaki-win-Portable.zip / releases.win.json を upload。
-#   - README の hero CTA は `releases/latest/download/Kudaki-win-Setup.exe`
-#     の固定 URL を指せば良い (Velopack が latest tag に必ず同名で置いてくれる)。
+# 成果物: Kudaki repo の Release に KudakiSetup.exe を upload。
+#
+# ビルド手順 (README の "Building from source" と同じ):
+#   1. Kudaki.App を self-contained publish
+#   2. その出力を Payload/Kudaki-payload.zip に固める
+#      (Kudaki.Installer.csproj が EmbeddedResource として同梱する)
+#   3. Kudaki.Installer を single-file self-contained publish → KudakiSetup.exe
+#   4. CHANGELOG.md から該当バージョンのセクションを抜いて release notes にする
 #
 # 権限:
-#   - contents: write ─ GITHUB_TOKEN で Release を作成・upload するために必要。
-#     追加の PAT 不要 (public repo の自 repo 内で完結)。
+#   contents: write ─ GITHUB_TOKEN で Release を作成・upload するために必要。追加 PAT 不要。
 #
-# Kata (C:\Git\ClassDesign) の release.yml から移植。Pro channel job は Kudaki には無いので release job のみ。
+# 注意:
+#   Kudaki は Velopack を使っていない (自前の Kudaki.Installer 方式)。
+#   auto update / delta 更新が欲しくなったら Velopack 導入を別途検討する
+#   (Kata = C:\Git\ClassDesign が Velopack pattern の参考実装)。
 
 name: Release
 
@@ -38,16 +43,14 @@ jobs:
         with:
           dotnet-version: '10.x'
 
-      - name: Install vpk tool
-        run: dotnet tool install -g vpk
-
       - name: Extract version (strip leading v)
         id: ver
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Building version: ${VERSION}"
+          echo "Building version: ${VERSION} (tag ${TAG})"
 
       - name: Publish Kudaki.App (Release, self-contained win-x64)
         run: |
@@ -55,34 +58,66 @@ jobs:
             -c Release \
             -r win-x64 \
             --self-contained true \
-            -o publish
+            -o publish/Kudaki.App
 
-      # 差分 (delta) 更新を作るには前 release の nupkg を download する必要がある。
-      # 初回 (前 release が Velopack 形式でない場合) は失敗するが
-      # continue-on-error で通す (full package のみ生成)。
-      - name: Download previous release for delta
-        continue-on-error: true
+      - name: Pack payload zip for the installer
+        shell: pwsh
         run: |
-          vpk download github \
-            --repoUrl https://github.com/dhq-boiler/Kudaki \
-            --token "${{ secrets.GITHUB_TOKEN }}"
+          New-Item -ItemType Directory -Force -Path src/Kudaki.Installer/Payload | Out-Null
+          Compress-Archive -Path publish/Kudaki.App/* `
+                           -DestinationPath src/Kudaki.Installer/Payload/Kudaki-payload.zip `
+                           -Force
+          $zip = Get-Item src/Kudaki.Installer/Payload/Kudaki-payload.zip
+          Write-Host "payload: $($zip.Length) bytes"
 
-      - name: Pack (Setup.exe + Portable.zip + release feed)
-        # AssemblyName=Kudaki なので mainExe は Kudaki.exe。
-        # TFM は net10.0-windows (WPF)、Velopack の framework 指定は net10.0-x64-desktop。
+      - name: Publish Kudaki.Installer (Release, single-file self-contained)
         run: |
-          vpk pack \
-            --packId Kudaki \
-            --packVersion "${{ steps.ver.outputs.version }}" \
-            --packDir publish \
-            --mainExe Kudaki.exe \
-            --framework net10.0-x64-desktop
+          dotnet publish src/Kudaki.Installer/Kudaki.Installer.csproj \
+            -c Release \
+            -r win-x64 \
+            --self-contained true \
+            -o publish/Kudaki.Installer
 
-      - name: Upload to GitHub Release
+      # CHANGELOG.md の "## [x.y.z]" から次の "## [" 直前までを抜き出して release notes に。
+      # 該当セクションが無い場合は空になるので、その場合は --generate-notes に fallback する。
+      - name: Extract release notes from CHANGELOG
+        id: notes
         run: |
-          vpk upload github \
-            --repoUrl https://github.com/dhq-boiler/Kudaki \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
-            --tag "${GITHUB_REF#refs/tags/}" \
-            --publish \
-            --releaseName "Kudaki ${{ steps.ver.outputs.version }}"
+          VERSION="${{ steps.ver.outputs.version }}"
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") { flag = 1; next }
+            /^## \[/ { flag = 0 }
+            flag { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+            echo "--- release notes ---"
+            cat release-notes.md
+          else
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+            echo "No CHANGELOG section for ${VERSION}; will use auto-generated notes."
+          fi
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          VERSION="${{ steps.ver.outputs.version }}"
+          ASSET="publish/Kudaki.Installer/KudakiSetup.exe"
+
+          if [ "${{ steps.notes.outputs.has_notes }}" = "true" ]; then
+            NOTES_ARG=(--notes-file release-notes.md)
+          else
+            NOTES_ARG=(--generate-notes)
+          fi
+
+          if gh release view "$TAG" --repo dhq-boiler/Kudaki >/dev/null 2>&1; then
+            echo "Release $TAG already exists; uploading asset with --clobber."
+            gh release upload "$TAG" "$ASSET" --repo dhq-boiler/Kudaki --clobber
+          else
+            gh release create "$TAG" "$ASSET" \
+              --repo dhq-boiler/Kudaki \
+              --title "Kudaki ${VERSION}" \
+              "${NOTES_ARG[@]}"
+          fi
