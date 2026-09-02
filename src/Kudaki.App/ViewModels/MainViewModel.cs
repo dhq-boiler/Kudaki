@@ -177,6 +177,26 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    // タブ追加 / close / 切替のたびに PersistOpenDocuments を呼ぶための watcher。
+    // App.OnStartup の RestoreOpenDocumentsAsync 完了後に有効化する
+    // (復元中の中間状態が settings.json に書かれるのを避けるため)。
+    // これで crash 時 (OnClosing が呼ばれない) でも直近のタブ構成が settings.json に残る
+    // (先ほど ScrollBar クラッシュで openDocuments が空になる事故が発生したので追加)。
+    private bool _persistWatcherEnabled;
+    public void EnablePersistWatcher()
+    {
+        if (_persistWatcherEnabled) return;
+        _persistWatcherEnabled = true;
+        Documents.CollectionChanged += (_, _) => TryPersistOpenDocuments();
+        ActiveDocument.Subscribe(_ => TryPersistOpenDocuments());
+    }
+
+    private void TryPersistOpenDocuments()
+    {
+        try { PersistOpenDocuments(); }
+        catch { /* silent — 頻繁に呼ばれるので個別のエラーは握りつぶす */ }
+    }
+
     // t-tab-close: タブヘッダの × ボタンから呼ばれる。dirty なら保存確認、
     // 最後のタブは削除せず空 doc にリセットしてアプリ終了を防ぐ。
     [RelayCommand]

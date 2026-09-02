@@ -103,12 +103,14 @@ public partial class App : Application
 
         // 前回開いてたタブを復元 (t-tab-restore-on-launch)。MainWindow ctor 完了後に BeginInvoke で
         // キューに積む。同 path の重複は OpenInNewTabAsync 側で防ぐので、後段の起動 arg と被っても
-        // 1 タブに収まる。
+        // 1 タブに収まる。復元完了後に PersistWatcher を有効化して、以後の Documents 変化 /
+        // ActiveDocument 切替を都度 settings.json に反映 (crash 時も直近状態が残る)。
         Dispatcher.BeginInvoke(new System.Action(async () =>
         {
             if (MainWindow?.DataContext is MainViewModel vm)
             {
                 await vm.RestoreOpenDocumentsAsync().ConfigureAwait(true);
+                vm.EnablePersistWatcher();
             }
         }));
 
