@@ -125,14 +125,20 @@ public static class KudakiMcpTools
 
         if (result == ApprovalResult.Approved)
         {
+            // 承認された proposed を Kudaki の Document に反映 + auto save。
+            // UI thread で LoadDocument + File I/O が走るので Dispatcher で切り替える。
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
             if (dispatcher is null || dispatcher.CheckAccess())
             {
-                doc.ApplyProposedDocument(proposed);
+                await doc.ApplyProposedDocumentAsync(proposed).ConfigureAwait(false);
             }
             else
             {
-                await dispatcher.InvokeAsync(() => doc.ApplyProposedDocument(proposed)).Task.ConfigureAwait(false);
+                // DispatcherOperation<Task> の完了 (=UI thread の Task 生成) を待ってから、
+                // 内部 Task (LoadDocument + Save) の完了を待つ。
+                var inner = await dispatcher.InvokeAsync(
+                    () => doc.ApplyProposedDocumentAsync(proposed)).Task.ConfigureAwait(false);
+                await inner.ConfigureAwait(false);
             }
         }
 

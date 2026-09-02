@@ -116,13 +116,24 @@ public sealed partial class DocumentViewModel : ObservableObject
     }
 
     // MCP propose_changes がユーザー承認を得た時に呼ばれる。
-    // proposed を実 Document に差し替え、変更未保存 (dirty) にする。
-    // UI スレッドから呼ぶ (Kestrel 側が Dispatcher.InvokeAsync で switching)。
-    public void ApplyProposedDocument(WbsDocument proposed)
+    // proposed を実 Document に差し替え、path が既に紐付いていれば file に即保存する。
+    // path 無し (未保存 doc) の場合は dirty=true のまま (現状 documentId が絶対パスなので
+    // MCP propose_changes は path 有り doc のみ対象、この分岐は実質使われない)。
+    // UI スレッドから呼ぶ (Kestrel 側が Dispatcher で switching)。
+    public async Task ApplyProposedDocumentAsync(WbsDocument proposed)
     {
         LoadDocument(proposed);
-        IsDirty.Value = true;
-        StatusMessage.Value = Strings.Status_AiProposalApplied;
+        if (_currentFilePath is not null)
+        {
+            // 自動保存: propose 承認 = 「Kudaki の状態と file 両方に反映する」に一体化。
+            // 再起動時に承認結果が消える体験 (v0.3 dogfood で先生から要望) を回避する。
+            await SaveToPathInternalAsync(_currentFilePath).ConfigureAwait(true);
+        }
+        else
+        {
+            IsDirty.Value = true;
+            StatusMessage.Value = Strings.Status_AiProposalApplied;
+        }
     }
 
     [RelayCommand]
