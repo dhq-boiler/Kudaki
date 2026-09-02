@@ -82,6 +82,19 @@ public partial class MainWindow : Window
 
     private MainViewModel Vm => (MainViewModel)DataContext;
 
+    // App.OnExit だとタイミング次第で MainWindow / DataContext が既に無効になっており
+    // タブ復元用の PersistOpenDocuments が呼ばれない事象があった (2026-09-02 dogfood で発覚)。
+    // MainWindow.Closing 時点なら DataContext が確実に生きているのでここで永続化する。
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            try { vm.PersistOpenDocuments(); }
+            catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine($"[Kudaki.Tabs] persist failed: {ex}"); }
+        }
+        base.OnClosing(e);
+    }
+
     private DateTime _landingShownAt;
     private static readonly TimeSpan LandingMinDisplay = TimeSpan.FromMilliseconds(2500);
     private static readonly TimeSpan LandingFadeOut = TimeSpan.FromMilliseconds(400);
