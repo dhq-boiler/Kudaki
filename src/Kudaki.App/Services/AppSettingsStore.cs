@@ -51,6 +51,11 @@ public sealed class JsonAppSettingsStore : IAppSettingsStore
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        // 2026-09-02 発覚バグ対策: PropertyNamingPolicy は書き込み時のみ効くケースがあり、
+        // 読み込み時に disk の "openDocuments" (camelCase) を C# の OpenDocuments (PascalCase) に
+        // マップし損ねて default (new List<string>()) が返り、次の Save で openDocuments=[] を
+        // 書き出す症状があった。case-insensitive にして両方向マッチを保証する。
+        PropertyNameCaseInsensitive = true,
     };
 
     public JsonAppSettingsStore()

@@ -81,14 +81,19 @@ public sealed partial class PreferencesViewModel : ObservableObject
     private void Ok()
     {
         // Language 側は LanguageService.Apply が内部で settings.Load → Save してくれる。
-        if (SelectedLanguageOption is not null)
+        // 実際に変更されたときだけ呼ぶ (無駄な Load/Save race を避ける、tab 永続化との衝突予防)。
+        if (SelectedLanguageOption is not null && SelectedLanguageOption.Value != _languageService.Selected)
         {
             _languageService.Apply(SelectedLanguageOption.Value);
         }
         // AutoApply 側は自分で settings.Load → 部分上書き → Save (LanguageService と同 pattern)。
-        var settings = _settingsStore.Load();
-        settings.AutoApply.Enabled = AutoApplyEnabled;
-        _settingsStore.Save(settings);
+        // こちらも変更されたときだけ save する。
+        var currentSettings = _settingsStore.Load();
+        if (currentSettings.AutoApply.Enabled != AutoApplyEnabled)
+        {
+            currentSettings.AutoApply.Enabled = AutoApplyEnabled;
+            _settingsStore.Save(currentSettings);
+        }
 
         RequestClose?.Invoke(true);
     }
