@@ -677,6 +677,87 @@
         </Setter>
     </Style>
 
+    <!--  =========================================================
+          Dialog buttons (Diff Overlay Approve/Reject、ConfirmDialog Save/Discard/Cancel 共用)
+          - 既定の WPF Button は白背景で hover 青のためダーク UI に浮く
+          - Primary (青塗り、Enter などの主導線) と Secondary (枠のみ) の 2 種
+          - hover 色は Palette の Primary/ControlMouseOverBackground を使う
+          ========================================================= -->
+
+    <Style x:Key="DialogPrimaryButton" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource PrimaryDefaultBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryDefaultBorderBrush}"/>
+        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="MinWidth" Value="96"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="3">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryMouseOverBackground}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource PrimaryMouseOverBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryPressedBackground}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource PrimaryPressedBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ControlDisabledBorderBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DialogSecondaryButton" TargetType="Button" BasedOn="{StaticResource DialogPrimaryButton}">
+        <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="3">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ControlMouseOverBackground}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ControlMouseOverBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ControlSelectedBackground}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ControlSelectedBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ControlDisabledBorderBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlSubtleForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- タブヘッダの × 閉じるボタン。デフォルトの WPF Button は白背景・青ホバーで
          ダーク調に浮くので retemplate。通常時は subtle foreground の x のみ、
          hover で HoverOverlayBrush + 明るい foreground、押下で少し暗い ControlDefaultBackground。 -->

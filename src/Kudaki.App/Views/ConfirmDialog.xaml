@@ -23,48 +23,8 @@
                       CornerRadius="0"/>
     </WindowChrome.WindowChrome>
 
-    <Window.Resources>
-        <!-- Primary (Save) / Secondary (Discard / Cancel) は UpdatePromptWindow と同じ意匠。
-             DRY を優先するなら Themes/ControlStyles.xaml に上げるべきだが、まず現状パターンを踏襲。 -->
-        <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource PrimaryDefaultBackground}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryDefaultBorderBrush}"/>
-            <Setter Property="Padding" Value="16,6"/>
-            <Setter Property="MinWidth" Value="96"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}"
-                                CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryMouseOverBackground}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-            <Setter Property="Background" Value="{DynamicResource ControlDefaultBackground}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource ControlMouseOverBackground}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
+    <!-- Primary (Save) / Secondary (Discard / Cancel) は Themes/ControlStyles.xaml の
+         DialogPrimaryButton / DialogSecondaryButton を共通利用 (Diff Overlay 承認/却下と同意匠)。 -->
 
     <DockPanel>
         <!-- タイトルバー -->
@@ -90,15 +50,15 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="{x:Static loc:Strings.CloseTab_Button_Cancel}"
                         Margin="0,0,8,0"
-                        Style="{StaticResource SecondaryButton}"
+                        Style="{StaticResource DialogSecondaryButton}"
                         Click="Cancel_Click"
                         IsCancel="True"/>
                 <Button Content="{x:Static loc:Strings.CloseTab_Button_Discard}"
                         Margin="0,0,8,0"
-                        Style="{StaticResource SecondaryButton}"
+                        Style="{StaticResource DialogSecondaryButton}"
                         Click="Discard_Click"/>
                 <Button Content="{x:Static loc:Strings.CloseTab_Button_Save}"
-                        Style="{StaticResource PrimaryButton}"
+                        Style="{StaticResource DialogPrimaryButton}"
                         Click="Save_Click"
                         IsDefault="True"/>
             </StackPanel>
