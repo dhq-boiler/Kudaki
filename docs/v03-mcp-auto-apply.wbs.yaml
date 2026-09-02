@@ -1,0 +1,144 @@
+version: 2
+title: Kudaki v0.3 (MCP auto-apply) — 軽量変更の承認バイパス
+createdAt: 2026-09-02T00:00:00.0000000Z
+modifiedAt: 2026-09-02T04:30:35.3227890Z
+tasks:
+- id: sec-background
+  title: 背景・目的
+  notes: >
+    MCP 経由 propose_changes は現状すべての diff を承認 UI 経由にしている。
+
+    dogfood 中に「進捗率の更新」「メモ追記」など軽微な変更で毎回承認 UI が
+
+    出るのが煩わしいとの feedback。auto-apply モードを段階導入する。
+
+
+    Fable レビュー済 (2026-09-02)。主な指摘は以下:
+
+    - AI 側は「厳しくする方向」のみ指示可、緩める権限は持たせない非対称設計
+
+    - get_document に revision を持たせて propose 時に照合 (手動編集との競合防止)
+
+    - auto と manual が混ざった proposal は「全部承認」に倒す
+
+    - セッション内 auto-apply 回数の上限で連鎖事故を止める
+
+
+    v0.3.0 で MVP セット (t-classify-spec / t-diff-classifier / t-mixed-fallback / t-settings-model / t-mcp-arg-tighten / t-revision-check) を実装完了。 残 (t-session-cap / t-batch-threshold / t-audit-log / t-unreviewed-inbox / t-unit-tests / t-integration-mcp / t-dogfood) は v0.3.1+ で dogfood 実感を 見て順次判断。
+- id: sec-classification
+  title: 変更カテゴリの auto/manual 切り分け設計
+  children:
+  - id: t-classify-spec
+    title: フィールド別 auto/manual 分類の仕様確定
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 (仕様固定、実装は t-diff-classifier)
+
+      Kudaki の TaskNode field に合わせた最終分類: - Auto: RemainingHours 更新のみ / Notes 追記のみ (Before が After の prefix + 長くなる) - Manual: Add/Delete、ParentId 変更、Title/EstimateHours/Assignee/DueDate/PredecessorIds/Notes 書き換え・削除、DocumentLevel 変更 - 混在 (auto と manual が同 propose 内): 全部承認に倒す (Fable 指摘 #1)
+
+      wbs 原案の progress/actualHours/status は Kudaki の field に無いので該当外 (progress は RemainingHours から derived)。「100% 到達を承認側に落とす」ルールは RemainingHours の単純更新に統合 (0 到達も Auto として扱う、AI が RemainingHours=0 を書いたら実質完了マーク だが手動確認は要らない設計)。
+  - id: t-diff-classifier
+    title: DiffCalculator に「auto-apply 可否分類器」を追加
+    estimateHours: 6
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d94673a
+
+      DiffCalculator.Compare が各 PendingChange に Severity (Auto/Manual) を付与。 Add/Delete/DocumentLevel は常に Manual、Update は ClassifyUpdate で FieldDiffs を全部 チェック。ParentId 変更 (階層移動) も Manual。IsFieldAutoApplyable は RemainingHours と 「Notes の追記のみ (IsNotesAppendOnly)」だけ true を返す。
+  - id: t-mixed-fallback
+    title: auto/manual 混在 proposal は全部承認に倒すロジック
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d94673a
+
+      PendingChangeSet.IsAllAutoApplicable で「全 change が Auto かつ空でない」ときのみ true。 KudakiMcpTools.ProposeChanges は「AutoApply 有効 && !requireApproval && IsAllAutoApplicable」の 3 条件が揃ったときだけ即適用、それ以外 (混在含む) は承認 UI に。 Fable レビュー落とし穴 #1 (部分適用による base ズレ回避) 対応。
+- id: sec-settings
+  title: 設定モデル (非対称ルール)
+  children:
+  - id: t-settings-model
+    title: AppSettings に AutoApplyPolicy を追加
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit ddf6e3e + 33d9d9c
+
+      AppSettings に AutoApplyPolicy (Enabled bool、default false = opt-in)。 Preferences ダイアログに MCP カテゴリ +「AI の軽量な変更を自動反映」checkbox を追加。 settings.json に永続化 (Language と同じ IAppSettingsStore を App レベルで共有)。 合わせて JsonSerializerOptions に PropertyNameCaseInsensitive=true を追加した (commit 5a428de、camelCase 逆マッピング bug 修正)。 フィールド粒度の on/off (RemainingHours only 等) は将来拡張、現状は「全部 auto or 全部承認」の 2 択でシンプル運用。
+  - id: t-mcp-arg-tighten
+    title: propose_changes に requireApproval フラグ追加 (厳しくする方向のみ)
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit ddf6e3e
+
+      propose_changes に requireApproval (bool, default false) 引数追加。 AI 側は「tighten (承認強制) する方向のみ指示可」。false 指定は「AI が緩めようと した」ことを意味するが実質無視される (ユーザー設定 AutoApplyPolicy.Enabled が 上限、AI 側から緩められない非対称)。Fable レビュー準拠。 tool description にも「You CANNOT loosen the policy」と明記。
+  - id: t-session-cap
+    title: セッション内 auto-apply 回数上限 (閾値超過で承認モードに落とす)
+    estimateHours: 3
+    notes: >
+      defer v0.3.1+ (dogfood で連鎖事故発生率を見て要否判断)。
+
+      デフォルト N 回 (要検討: 20 回程度?) 超過で以後は全部承認 UI 経由。
+
+      「連続」ではなく「セッション累計」でカウント。設定でリセット可。
+  - id: t-batch-threshold
+    title: 一括変更の件数閾値 (超過で承認モード)
+    estimateHours: 2
+    notes: >
+      defer v0.3.1+ (dogfood で一括変更頻度を見て要否判断)。
+
+      閾値 (要検討: 5-10 件?) 以下なら auto、超過は承認。設定で調整可。
+- id: sec-safety
+  title: 安全機構
+  children:
+  - id: t-revision-check
+    title: get_document に revision を含めて propose 時に照合
+    estimateHours: 4
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 1ca8e67
+
+      DocumentViewModel.GetRevision (SHA-256 の hex 先頭 12 桁、YAML スナップショットから計算)。 list_documents 応答に revision フィールド追加、propose_changes に expectedRevision (optional) 引数追加。指定時に現在 revision と不一致なら {result: revision_mismatch, expected, current} で reject (承認 UI にも流さない、doc に触れない)。 推奨 flow: list_documents (取得 revision) → get_document → build proposal → propose_changes with expectedRevision。楽観的並行制御、Fable レビュー落とし穴 #2 対応。
+  - id: t-audit-log
+    title: auto-apply 履歴のログ記録
+    estimateHours: 3
+    notes: >
+      defer v0.3.1+ (dogfood で誤爆発生率を見て要否判断)。
+
+      %LOCALAPPDATA%/Kudaki/mcp-audit.log 等に (timestamp, source, diff summary) を記録。
+
+      フル diff は保存しない (肥大化防止)、要約のみ。
+  - id: t-unreviewed-inbox
+    title: 「auto-apply 済み未確認」バッジ + 一括 revert UI
+    estimateHours: 6
+    notes: >
+      defer v0.3.1+ (dogfood で undo 頻度を見て要否判断)。
+
+      MainWindow に inbox バッジ (件数表示)、click で auto-apply 履歴 pane を開く。
+
+      各エントリに「revert」ボタン (該当 diff を逆適用)。
+- id: sec-verify
+  title: 動作確認
+  children:
+  - id: t-unit-tests
+    title: DiffCalculator 分類器の unit test
+    estimateHours: 3
+    notes: >
+      defer v0.3.1+ (test project 導入と併せて別スコープ)。
+
+      Kudaki は現状 main project 単体のみ、test project 未整備。 xUnit / MSTest / NUnit いずれかを導入した後、境界ケース (100% 到達、notes 追記 vs 書き換え、ParentId 変更、混在 diff) をカバー。
+  - id: t-integration-mcp
+    title: MCP 経由 auto-apply の integration test
+    estimateHours: 3
+    notes: >
+      defer v0.3.1+ (test project 導入と併せて / 実 dogfood で暫定カバー)。
+
+      v03-multi-doc の t-multi-doc-mcp-smoke で 2 セッション同時 propose の per-doc routing と revision_mismatch の reject 動作は実手動で確認済み。 自動 integration test は test project 導入後。
+  - id: t-dogfood
+    title: 実 dogfood (Kudaki 自身の WBS で 1 週間運用)
+    estimateHours: 4
+    notes: >
+      継続。Kudaki 自身の WBS を Claude Code から編集して運用中。
+
+      観測メトリクス: 承認 UI 頻度の減少、auto-apply 誤爆率 (Manual だと思ってたのが Auto に流れた/その逆)、revert 発生率、revision_mismatch 発生率。 これらの実測から t-session-cap / t-batch-threshold / t-audit-log / t-unreviewed-inbox の実装優先度を決める。

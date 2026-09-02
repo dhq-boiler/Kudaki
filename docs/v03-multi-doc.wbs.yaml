@@ -1,0 +1,301 @@
+version: 2
+title: Kudaki v0.3 (multi-doc) — シングルトン + マルチドキュメント
+createdAt: 2026-09-02T00:00:00.0000000Z
+modifiedAt: 2026-09-02T04:23:00.0698086Z
+tasks:
+- id: sec-background
+  title: 背景・方針
+  notes: >
+    2026-09-02 判断反転。旧 A ルート (マルチインスタンス + expected_path)
+
+    を廃案にして、B ルート (シングルトン + マルチドキュメント) を v0.3 で
+
+    フル実装する。
+
+
+    反転の理由:
+
+    - port hard-code で 2 個目インスタンスがスプラッシュで hang (MCP 重複 listen)
+
+    - A ルートは修正しても使い勝手コスト (port 管理・mcp.json 使い分け・
+      プロセス n 個常駐) が残る
+    - dogfood 実需 (Kata backlog と Kudaki 自身の WBS を同時に触りたい) 確定
+
+
+    参考: memory/project_multi_instance_design.md (2026-09-02 更新版)
+
+
+    工数は当初「v0.2 全体に匹敵」と見積もっていたので v0.3 の主要スライスに
+
+    位置付ける。i18n スライス (v03-i18n-plan) と MCP auto-apply スライス
+
+    (v03-mcp-auto-apply) と並行して進める。
+- id: sec-splash-hang
+  title: スプラッシュ hang bug 修正 (先行)
+  notes: >
+    B に到達する前に、現状 2 個目起動でスプラッシュ hang するのが単純に
+
+    バグとして目立つので先に潰す。B 実装後も「Mutex 取得前に MCP listen
+
+    を試みる」順序ミスがあれば同じ hang が起きるので、防波堤として残す。
+  children:
+  - id: t-mcp-listen-guard
+    title: MCP TcpListener bind 失敗を検知して abort or 起動継続
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit b3d5857
+
+      McpHostService.StartAsync 冒頭で TcpListener による port 空き先行検査を追加 (IsPortAvailable)。衝突時は InvalidOperationException で即失敗。Kestrel の 内部で握られる例外パスを回避し、確実に呼び出し元まで伝播させる。
+  - id: t-splash-error-surface
+    title: スプラッシュから MainWindow への遷移失敗時にエラー表示
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit b3d5857
+
+      App.xaml.cs に ReportLoadingSafelyAsync を新設。UI thread へ marshal + MainViewModel.Current 用意まで最大 5 秒リトライ。MCP 起動失敗時の catch から Landing_Status_McpFailed を確実に反映して Landing を閉じる。
+- id: sec-singleton
+  title: シングルトンインスタンス化
+  notes: >
+    2 個目起動時は 1 個目に arg (開くファイルパス) を forward して自分は exit。
+
+    Windows の Mutex + Named Pipe パターン。
+  children:
+  - id: t-mutex
+    title: Named Mutex による起動時排他
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d7d3efd
+
+      SingleInstanceCoordinator に Mutex "Local\Kudaki.SingleInstance" を実装。 App.OnStartup 冒頭で TryAcquire、失敗なら Shutdown(0)。Local\ プレフィックスで 同一ユーザーセッション内のみ排他、複数ユーザーの同時ログオンは共存可能。
+  - id: t-named-pipe-server
+    title: 1 個目が Named Pipe server として立つ
+    estimateHours: 4
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d7d3efd
+
+      NamedPipeServerStream "Kudaki.Instance" を async loop で listen。base.OnStartup 後 (MainWindow ctor 完了後) に開始することで、OnSingleInstanceMessage 発火時に MainWindow が null になる race を回避。
+  - id: t-named-pipe-client
+    title: 2 個目が client として arg を forward して exit
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d7d3efd
+
+      TryForward で NamedPipeClientStream (5 秒 timeout) 接続 + 1 行送信。 arg がファイルパスなら "open <absolute-path>"、無ければ "activate"。 forward 後は Shutdown(0)。1 個目瀕死時の fallback は未実装 (諦めて exit)。
+  - id: t-window-activation
+    title: 1 個目のウィンドウを前面化 (SetForegroundWindow)
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d7d3efd
+
+      BringMainWindowToFront で WindowState 復元 + Activate + Topmost 一瞬 ON/OFF トリック。SetForegroundWindow の P/Invoke は避けて WPF API のみで実現。 3 個目起動 (file arg 付き) 時に 1 個目のタイトルが対象ファイル名に変わることを 自動テスト smoke で確認済み。
+- id: sec-document-model
+  title: DocumentViewModel 抽出 (MVVM 手術)
+  notes: >
+    現状 MainViewModel が「1 個の Document」を直接保持してる。
+
+    これを ActiveDocument + Documents コレクションに組み替える。
+
+    R3 の観測プロパティで書かれているので Bindable Reactive Property の
+
+    再配線が発生する (feedback_r3_and_mvvm_purity)。
+  children:
+  - id: t-doc-vm-extract
+    title: DocumentViewModel 新規作成 (現 MainViewModel の doc 責務を移譲)
+    estimateHours: 6
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d0a1839
+
+      per-doc 責務 (WbsDocument / SelectedTask / IsDirty / StatusMessage / CurrentPendingSet / ファイル I/O / ツリー編集コマンド / ナビ / 依存関係 / ArrowDiagramService) を DocumentViewModel に切り出し。MainViewModel は Documents / ActiveDocument に組み替え、XAML 互換のための委譲層を暫定で置いた (t-tab-control で削除)。
+  - id: t-doc-dirty-per-doc
+    title: dirty flag / undo stack をドキュメントごとに独立
+    estimateHours: 4
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit d0a1839
+
+      IsDirty は DocumentViewModel の instance state になったので per-doc に独立。 undo stack は元々未実装なので今回スコープ外 (将来実装時から per-doc に)。 タブ切替で dirty マーク (t-tab-close で使用予定) は該当 doc の状態を反映。
+  - id: t-doc-diffoverlay-routing
+    title: DiffOverlay の表示先を ActiveDocument にルーティング
+    estimateHours: 4
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 6ec4174 + facd7ac
+
+      PendingChangesService をシングルトンから per-doc 化。DocumentViewModel が 自 PendingService.Pending を購読して CurrentPendingSet に流す。 MCP propose_changes は DocumentRegistry.Resolve(documentId) 経由で該当 doc の PendingService に直接投入。DiffOverlay の Visibility は "{Binding CurrentPendingSet.Value, Converter=NullToVis}" で ActiveDocument.Value に紐付け (facd7ac で bind 不整合バグを修正)。承認待ちバッジ (非アクティブ doc に proposal あることの視覚化) は t-tab-close 系で後付け候補。
+- id: sec-tab-ui
+  title: タブ UI (View)
+  children:
+  - id: t-tab-control
+    title: TabControl (ダークテーマ準拠) を MainWindow に配置
+    estimateHours: 4
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit c00b4e9 + adc6c5b
+
+      中央本体 Grid を TabControl.ContentTemplate 内の DataTemplate に包む。 ItemsSource=Documents、SelectedItem<->ActiveDocument.Value 双方向 bind。 TabItem スタイルは ControlStyles.xaml に追加 (SidebarBackground ヘッダ、 選択タブは BackgroundColour + 2px アクセント下線、VS Code / Visual Studio 意匠)。 dirty マーク / 閉じるボタン / 承認待ちバッジは t-tab-close 系で後付け。
+  - id: t-tab-open-command
+    title: ファイル → 開く で新規タブとして開く
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 457da93
+
+      OpenInNewTabAsync(path): 既に開いてる同 path はそのタブに切り替え (重複防止)、 アクティブが「空 doc (path なし + 未編集 + タスク 0)」なら再利用、それ以外は 新規 DocumentViewModel を Documents に追加してアクティブ化。 Open / LoadFromPath (FileDrop / 起動 arg / Named Pipe forward) / New すべて統一。 ArrowDiagramService は MainViewModel が保持して新規タブに伝搬。
+  - id: t-tab-close
+    title: タブ close (dirty 時は保存確認)
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 679625d + 001798f + 9018701 + 8def708
+
+      IConfirmDialogService / WpfConfirmDialogService (MVVM 純度) + タブヘッダの × ボタン + dirty マーカー (*) + 3 択ダイアログ (保存 / 破棄 / キャンセル)。最後のタブを閉じるときは Documents.Remove せず空 doc にリセット (アプリ終了しない)。派生実装: (a) 001798f - DocumentViewModel が subtree 全体 (PropertyChanged + Children/Predecessors.CollectionChanged) を購読して手動編集で IsDirty=true にする、v0.2 からの潜在バグ修正で close 確認の前提。(b) 9018701 - タブヘッダの × ボタンを Themes/ControlStyles.xaml で retemplate、ダーク調 (hover で HoverOverlayBrush)。(c) 8def708 - 3 択ダイアログを Views/ConfirmDialog.xaml で自前 Window として再実装 (OS ネイティブ MessageBox がダークテーマ非対応で白背景に浮いていた)。AI 経由の dirty は propose 承認時 auto-save (commit 34df540) で発生しないので手動編集 dirty のみが実用対象。
+  - id: t-tab-reorder
+    title: タブのドラッグ並び替え
+    estimateHours: 3
+    notes: >
+      MVP はスキップ可 (dogfood 中に要望が出たら実装)。優先度 P2。
+  - id: t-tab-restore-on-launch
+    title: 前回開いてたタブを起動時に復元
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 758163f + 39ef546
+
+      AppSettings に OpenDocuments (List<string>) + ActiveDocumentPath (string?) を追加。MainViewModel.RestoreOpenDocumentsAsync (App.OnStartup で MainWindow ctor 完了後に BeginInvoke で呼び出し) が settings.OpenDocuments を順次 OpenInNewTabAsync で開き、壊れた path (File.Exists=false) はスキップ、ActiveDocumentPath 指定タブに切替。IAppSettingsStore は App レベルで単一 instance を LanguageService と MainViewModel で共有 (2 個の store インスタンスがあると settings.json への race で片方の変更が消える)。永続化タイミングは 39ef546 で App.OnExit から MainWindow.OnClosing に移動 (App.OnExit だと DataContext が既に無効になるケースがあり openDocuments が書かれない bug、先生 dogfood で発覚)。
+- id: sec-mcp-schema
+  title: MCP スキーマ変更 (documentId 必須化)
+  notes: >
+    B 実装で「アクティブなドキュメントに propose」ではなく「特定 documentId
+
+    に propose」に変える。旧 A ルートで議論した expected_path はここに合流。
+  children:
+  - id: t-document-registry
+    title: シングルトンな DocumentRegistry
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 6ec4174
+
+      DocumentRegistry (singleton) を Services/Mcp/ に新設。MainViewModel の ctor で self-register (Bind)。documentId = 絶対パス (Path.GetFullPath 正規化 + Windows 用に大文字小文字無視で照合)。未保存 doc (CurrentFilePath == null) は list に載せない = AI から触れない。ListDocuments() / Resolve(documentId) の 2 メソッドを提供。
+  - id: t-getdoc-schema
+    title: get_document に documentId 引数を追加、応答に filePath 含める
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 6ec4174
+
+      get_document(documentId) 必須化。DocumentRegistry.Resolve で解決、未 open は {result: unknown_document, message: ...} を返す。応答は現状 YAML text のみ (filePath は list_documents 側で提供)。v0.2 の documentId 無し呼び出しは 破壊的変更として告知。
+  - id: t-propose-schema
+    title: propose_changes に documentId 必須化
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 6ec4174
+
+      propose_changes(documentId, yaml, source, timeoutSeconds) documentId 必須化。 DocumentRegistry.Resolve → doc.PendingService.SubmitAsync で該当 doc の DiffOverlay に投入。「アクティブ doc フォールバック」は事故の元なので 採用しない (Fable レビュー指摘)。commit 34df540 で承認時 auto-save も統合。
+  - id: t-list-documents
+    title: list_documents tool 追加 (現在開いてる全 doc の一覧を返す)
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 6ec4174
+
+      list_documents() → [{documentId, filePath, title, isActive, isDirty}, ...] を JSON 配列で返す。AI が「どの doc を触るか」を選択するための第一手。 DocumentRegistry.ListDocuments 経由。未保存 doc は含めない。
+  - id: t-tool-description-tune
+    title: MCP tool description の recalibration
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 6ec4174
+
+      3 tool の [Description] を書き直し、「list_documents を最初に呼ぶ」flow、 documentId が絶対パスであること、未保存 doc は AI から触れないこと、 アクティブ doc フォールバックを廃止したことを明記。 empirical-mcp-tool-description-tuning での本格 recalibration は dogfood で 選択精度に不満が出てから (現状 dogfood 1 発通過なので後回し)。
+- id: sec-verify
+  title: 動作確認
+  children:
+  - id: t-singleton-smoke
+    title: シングルトン化 smoke test
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 (d7d3efd と 34df540 前で PowerShell 自動テスト実施)
+
+      1 個目起動 → 2 個目 (arg なし) 起動: 即 exit + 1 個目 activate 前面化 OK 3 個目 (file arg 付き) 起動: 即 exit + 1 個目に該当ファイルが開く OK 1 個目タイトルが対象ファイル名に変わることを確認。ドラッグ並び替えは t-tab-reorder。
+  - id: t-multi-doc-mcp-smoke
+    title: 複数 doc + MCP smoke test
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02
+
+      2 セッション同時 dogfood で実証: - Claude Code (Kudaki 側) → Kudaki multi-doc.wbs.yaml 宛 propose → 該当タブの
+        DiffOverlay に承認 UI (facd7ac の bind 修正後)
+      - Claude Code (VARA 側) → VARA tasks.wbs.yaml 宛 propose → 該当タブの
+        DiffOverlay に承認 UI
+      それぞれ独立して見える + 承認/却下も正しい doc に届く。dogfood 実需そのものを一発通過。 非アクティブタブの承認待ちバッジは未実装 (t-tab-close 系で後付け予定)。
+  - id: t-dogfood
+    title: 実 dogfood (Kata + Kudaki 並行タスク管理を 1 週間運用)
+    estimateHours: 4
+    notes: >
+      タブ切り替えのストレス / 承認待ちバッジの気付きやすさ / dirty per doc の
+
+      混乱有無 / 起動時 restore の期待通り性 を feedback として蓄積。
+- id: sec-dogfood-polish
+  title: dogfood 派生 polish (2026-09-02 の実装セッションで追加)
+  notes: >
+    v0.3 実装中の dogfood で発覚した issue や先生要望に応じて追加した実装。 v0.3 の主要スライスとは独立した粒度で commit した polish 群。
+  children:
+  - id: t-auto-save-on-approve
+    title: MCP propose_changes 承認時に自動 file 保存
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 34df540
+
+      承認 = Kudaki メモリの Document 反映と file 保存を一体化。DocumentViewModel.ApplyProposedDocumentAsync に SaveToPathInternalAsync を組み込んだ。Kudaki 再起動で承認結果が消えなくなる (先生 dogfood 要望)。
+  - id: t-tab-close-button-style
+    title: タブ x ボタンのダークスタイル (retemplate)
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 9018701
+
+      既定の WPF Button は白背景 + 青ホバーでダーク UI に浮くので Themes/ControlStyles.xaml に TabCloseButton style を追加。透明背景 + hover で HoverOverlayBrush。
+  - id: t-scrollbar-kata-style
+    title: スクロールバーを Kata スタイルに揃える
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 3ad2208 + 932717e
+
+      Kata (C:\Git\ClassDesign) DarkTheme.xaml から ScrollBar 意匠 (幅 10、角丸 4、Thumb ドラッグ時にアクセント青) を移植。旧 ScrollBar Style (Kudaki 既存) の重複による起動クラッシュ (932717e) を修正して置き換え。TargetType 適用なので全 ScrollViewer に自動反映。
+  - id: t-confirm-dialog-dark
+    title: 未保存の変更ダイアログをカスタム Window でダークテーマ化
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 8def708
+
+      OS ネイティブ MessageBox がダークパレットに追従せず白背景で浮いていた。Views/ConfirmDialog.xaml を新設 (WindowChrome + Kudaki パレット + Primary/Secondary ボタン)。
+  - id: t-open-docs-camel-case-bug
+    title: openDocuments が Preferences OK で消える bug 修正 (根治)
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 5a428de
+
+      System.Text.Json の PropertyNamingPolicy=CamelCase が書き込み時のみ効いており、読み込み時に disk の openDocuments を C# の OpenDocuments にマップし損ねて default (new List) を返し、次の Save で openDocuments=[] を書き出す症状があった。PropertyNameCaseInsensitive=true を追加して両方向マッチを保証。合わせて PreferencesViewModel.Ok が Language/AutoApply 変更ないとき Apply/Save を呼ばないよう最適化。
+  - id: t-persist-watcher
+    title: タブ状態を都度永続化 (crash 時も直近状態を残す)
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 完了 2026-09-02 commit 55dc701 + 1162b93
+
+      Documents.CollectionChanged / ActiveDocument.Value の変化で PersistOpenDocuments を都度呼ぶ watcher を EnablePersistWatcher で有効化 (App.OnStartup の RestoreOpenDocumentsAsync 完了後)。Restore を try-finally で囲み、個別 file の失敗があっても watcher 有効化を保証する (1162b93)。Force kill でも直近の Documents 状態が settings.json に残る。
