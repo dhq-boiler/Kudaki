@@ -27,10 +27,12 @@ public static class KudakiMcpTools
     [McpServerTool(Name = "list_documents")]
     [Description(
         "List all WBS documents currently open in Kudaki. Returns a JSON array of " +
-        "{documentId, filePath, title, isActive, isDirty}. `documentId` is the absolute file path " +
-        "and is the required key for get_document and propose_changes. Unsaved (untitled) documents " +
-        "are NOT listed — they cannot be addressed by MCP tools until saved. " +
-        "Call this FIRST before get_document / propose_changes to pick the correct target.")]
+        "{documentId, filePath, title, isActive, isDirty, revision}. `documentId` is the absolute file path " +
+        "and is the required key for get_document and propose_changes. `revision` is a short hash of the " +
+        "current document state; pass it to propose_changes as `expectedRevision` to reject stale proposals " +
+        "that would overwrite concurrent user or AI edits. Unsaved (untitled) documents are NOT listed — " +
+        "they cannot be addressed by MCP tools until saved. Call this FIRST before get_document / " +
+        "propose_changes to pick the correct target and revision.")]
     public static string ListDocuments()
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
@@ -49,7 +51,8 @@ public static class KudakiMcpTools
             sb.Append("\"filePath\":").Append(JsonString(d.FilePath)).Append(',');
             sb.Append("\"title\":").Append(JsonString(d.Title)).Append(',');
             sb.Append("\"isActive\":").Append(d.IsActive ? "true" : "false").Append(',');
-            sb.Append("\"isDirty\":").Append(d.IsDirty ? "true" : "false");
+            sb.Append("\"isDirty\":").Append(d.IsDirty ? "true" : "false").Append(',');
+            sb.Append("\"revision\":").Append(JsonString(d.Revision));
             sb.Append('}');
         }
         sb.Append(']');
@@ -85,7 +88,7 @@ public static class KudakiMcpTools
         "the auto-apply policy (recommended for changes you want the user to explicitly review). " +
         "You CANNOT loosen the policy from the AI side; only tighten (this is by design). " +
         "Returns a JSON string with a `result` field: `auto_applied` / `approved` / `rejected` / `timeout` / " +
-        "`no_changes` / `unknown_document` / `error`.")]
+        "`no_changes` / `unknown_document` / `revision_mismatch` / `error`.")]
     public static async Task<string> ProposeChanges(
         [Description("Absolute file path of the target document (from list_documents). Required.")]
         string documentId,
@@ -98,12 +101,30 @@ public static class KudakiMcpTools
         [Description("If true, force manual approval UI even when the change qualifies for auto-apply. " +
                      "AI can only tighten the policy (not loosen it), so setting this to false has no effect " +
                      "when the user has auto-apply disabled.")]
-        bool requireApproval = false)
+        bool requireApproval = false,
+        [Description("Optional. Expected current revision (from list_documents). If specified and does not " +
+                     "match the current server-side revision, the propose is rejected with " +
+                     "`result:revision_mismatch` WITHOUT showing UI, to prevent overwriting concurrent edits " +
+                     "made after your last snapshot. Recommended workflow: list_documents (get revision) → " +
+                     "get_document → build proposal → propose_changes with expectedRevision.")]
+        string? expectedRevision = null)
     {
         var doc = DocumentRegistry.Instance.Resolve(documentId);
         if (doc is null)
         {
             return Json("unknown_document", $"documentId not found: {documentId}. Call list_documents first.");
+        }
+
+        // v03-mcp-auto-apply t-revision-check: 呼び出し側が「取得時点」の revision を渡した場合、
+        // その後にユーザーや別 AI が編集して revision が変わっていれば reject。
+        // AI に「最新を再取得してからやり直せ」を明示的に返す (承認 UI に流さない、上書き事故防止)。
+        if (!string.IsNullOrEmpty(expectedRevision))
+        {
+            var currentRevision = doc.GetRevision();
+            if (!string.Equals(currentRevision, expectedRevision, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{{\"result\":\"revision_mismatch\",\"expected\":{JsonString(expectedRevision)},\"current\":{JsonString(currentRevision)}}}";
+            }
         }
 
         WbsDocument proposed;

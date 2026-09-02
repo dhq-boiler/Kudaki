@@ -131,6 +131,19 @@ public sealed partial class DocumentViewModel : ObservableObject
         return dispatcher.Invoke(() => _storage.SerializeToString(_document));
     }
 
+    // v03-mcp-auto-apply t-revision-check: YAML スナップショット から SHA-256 12 hex を作る。
+    // 目的: list_documents で AI に返して、propose_changes 時に expectedRevision と照合する。
+    // 現在 revision と不一致なら「AI がスナップショット取った後にユーザーや別 AI が編集した」ケースなので
+    // 上書き事故を防ぐため reject。数十 KB の YAML SHA-256 は ~ms、呼び出し頻度低いので毎回計算で十分。
+    public string GetRevision()
+    {
+        var yaml = GetDocumentYamlSnapshot();
+        var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(yaml));
+        var sb = new System.Text.StringBuilder(12);
+        for (var i = 0; i < 6; i++) sb.Append(bytes[i].ToString("x2"));
+        return sb.ToString();
+    }
+
     // MCP propose_changes がユーザー承認を得た時に呼ばれる。
     // proposed を実 Document に差し替え、path が既に紐付いていれば file に即保存する。
     // path 無し (未保存 doc) の場合は dirty=true のまま (現状 documentId が絶対パスなので

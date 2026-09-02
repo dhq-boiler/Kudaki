@@ -46,7 +46,8 @@ public sealed class DocumentRegistry
                 FilePath: d.CurrentFilePath!,
                 Title: d.WindowTitle.Value,
                 IsActive: ReferenceEquals(d, active),
-                IsDirty: d.IsDirty.Value))
+                IsDirty: d.IsDirty.Value,
+                Revision: d.GetRevision()))
             .ToList();
     }
 
@@ -74,4 +75,4 @@ public sealed class DocumentRegistry
     private static string NormalizeId(string path) => Path.GetFullPath(path);
 }
 
-public sealed record DocumentInfo(string DocumentId, string FilePath, string Title, bool IsActive, bool IsDirty);
+public sealed record DocumentInfo(string DocumentId, string FilePath, string Title, bool IsActive, bool IsDirty, string Revision);
