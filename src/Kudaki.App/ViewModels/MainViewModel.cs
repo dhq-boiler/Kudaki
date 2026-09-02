@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -113,9 +115,11 @@ public sealed partial class MainViewModel : ObservableObject
         if (LoadingPercent.Value >= 100) IsLoading.Value = false;
     }
 
-    // ArrowDiagramService は View 層由来なので DocumentViewModel に転送する。
+    // ArrowDiagramService は View 層由来なので保持しつつ現ドキュメントと将来の新規タブに配る。
+    private IArrowDiagramService? _arrowDiagramService;
     internal void SetArrowDiagramService(IArrowDiagramService s)
     {
+        _arrowDiagramService = s;
         foreach (var doc in Documents) doc.SetArrowDiagramService(s);
     }
 
@@ -124,12 +128,18 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenPreferences() => _preferencesDialog.Show();
 
+    // Ctrl+N / ファイル→新規。空タブが既にあればそれを再利用、なければ新規タブを作ってアクティブ化。
     [RelayCommand]
     private void NewDocument()
     {
-        // 現状はマルチドキュメント UI (タブ) 未実装なので、ActiveDocument を空 doc に置き換える。
-        // t-tab-open-command で「新規タブとして開く」に変更する。
-        ActiveDocument.Value?.NewDocumentInPlace();
+        if (TryReuseEmptyTab(out var empty))
+        {
+            ActiveDocument.Value = empty;
+            return;
+        }
+        var doc = CreateDocument();
+        Documents.Add(doc);
+        ActiveDocument.Value = doc;
     }
 
     [RelayCommand]
@@ -137,21 +147,71 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var path = await _dialogs.ShowOpenAsync(YamlStorageService.OpenFilter, Strings.Dialog_Open_Title);
         if (path is null) return;
-        if (ActiveDocument.Value is { } doc)
-        {
-            await doc.LoadFromPathAsync(path).ConfigureAwait(true);
-        }
+        await OpenInNewTabAsync(path).ConfigureAwait(true);
     }
 
     // FileDropBehavior が Command として呼び出す (string 引数)。
-    // ActiveDocument に対して LoadFromPathAsync を委譲する。
+    // 起動引数 / Named Pipe forward からも同じ経路で来る (App.xaml.cs 経由)。
     [RelayCommand]
-    internal async Task LoadFromPathAsync(string path)
+    internal Task LoadFromPathAsync(string path) => OpenInNewTabAsync(path);
+
+    // t-tab-open-command: 新規タブとして開く。
+    // - 既に同 path のタブがあればそのタブに切り替え (重複タブは作らない)
+    // - アクティブタブが「空 doc (path なし + 未編集 + タスク 0)」ならそのタブを使い回す
+    //   (最初の 1 個目の空タブが Ctrl+O のたびに空のまま残るのを防ぐ)
+    // - それ以外は新規タブを追加してアクティブ化
+    public async Task OpenInNewTabAsync(string path)
     {
-        if (ActiveDocument.Value is { } doc)
+        var absolute = Path.GetFullPath(path);
+
+        // 既存タブ検索: 絶対パス正規化 + 大文字小文字無視 (Windows)
+        var existing = Documents.FirstOrDefault(d =>
+            d.CurrentFilePath is not null &&
+            string.Equals(Path.GetFullPath(d.CurrentFilePath), absolute, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
         {
-            await doc.LoadFromPathAsync(path).ConfigureAwait(true);
+            ActiveDocument.Value = existing;
+            return;
         }
+
+        DocumentViewModel target;
+        if (TryReuseEmptyTab(out var empty))
+        {
+            target = empty;
+            ActiveDocument.Value = empty;
+        }
+        else
+        {
+            target = CreateDocument();
+            Documents.Add(target);
+            ActiveDocument.Value = target;
+        }
+
+        await target.LoadFromPathAsync(path).ConfigureAwait(true);
+    }
+
+    // ArrowDiagramService を注入した新規 DocumentViewModel を生成する。
+    private DocumentViewModel CreateDocument()
+    {
+        var doc = new DocumentViewModel(_dialogs);
+        if (_arrowDiagramService is not null) doc.SetArrowDiagramService(_arrowDiagramService);
+        return doc;
+    }
+
+    // アクティブタブが「使い回して良い空 doc」か判定して返す。
+    // 判定: 保存パスなし + 未編集 (dirty=false) + タスク 0 個。
+    private bool TryReuseEmptyTab(out DocumentViewModel empty)
+    {
+        if (ActiveDocument.Value is { } cur
+            && !cur.HasCurrentFilePath
+            && !cur.IsDirty.Value
+            && cur.RootTasks.Count == 0)
+        {
+            empty = cur;
+            return true;
+        }
+        empty = null!;
+        return false;
     }
 
     // 起動時に GitHub Releases を非同期確認、新しいのがあれば AvailableUpdate に載せる。
