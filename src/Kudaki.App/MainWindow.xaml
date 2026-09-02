@@ -328,10 +328,30 @@
         <TabControl ItemsSource="{Binding Documents}"
                     SelectedItem="{Binding ActiveDocument.Value, Mode=TwoWay}">
             <TabControl.ItemContainerStyle>
-                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
-                    <Setter Property="Header" Value="{Binding WindowTitle.Value}"/>
-                </Style>
+                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}"/>
             </TabControl.ItemContainerStyle>
+            <TabControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:DocumentViewModel}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- TabHeaderText = WindowTitle + dirty マーク (*) の computed -->
+                        <TextBlock Text="{Binding TabHeaderText.Value}"
+                                   VerticalAlignment="Center"/>
+                        <!-- × ボタン: クリックで MainViewModel.CloseDocument(doc) -->
+                        <Button Content="✕"
+                                Margin="10,0,0,0"
+                                Padding="0"
+                                Width="16" Height="16"
+                                FontSize="10"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="{DynamicResource ControlSubtleForeground}"
+                                Cursor="Hand"
+                                ToolTip="{x:Static loc:Strings.TabHeader_CloseTooltip}"
+                                Command="{Binding DataContext.CloseDocumentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
             <TabControl.ContentTemplate>
                 <DataTemplate DataType="{x:Type vm:DocumentViewModel}">
         <Grid>

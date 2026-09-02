@@ -56,13 +56,29 @@ public sealed partial class DocumentViewModel : ObservableObject
     // 該当 doc を解決して doc.PendingService.SubmitAsync を呼ぶ。
     public Services.Mcp.PendingChangesService PendingService { get; } = new();
 
+    // TabHeader 表示用: WindowTitle + dirty マーク (*) の computed。
+    // WindowTitle か IsDirty が変わったら再計算して push する。
+    public BindableReactiveProperty<string> TabHeaderText { get; }
+        = new(Strings.Main_Title_Untitled);
+
     public DocumentViewModel(IFileDialogService dialogs)
     {
         _dialogs = dialogs;
         LoadDocument(new WbsDocument());
         SelectedTask.Subscribe(_ => RecomputeSelectablePredecessors());
         WireOwnPendingQueue();
+
+        // WindowTitle と IsDirty のどちらかが動いたら TabHeaderText を更新。
+        // CombineLatest は R3 の Observable 拡張。両方の最新値をペアで流す。
+        WindowTitle.CombineLatest(IsDirty, (t, d) => FormatTabHeader(t, d))
+            .Subscribe(v => TabHeaderText.Value = v);
     }
+
+    private static string FormatTabHeader(string title, bool dirty) => dirty ? $"{title} *" : title;
+
+    // t-tab-close 用: MainViewModel から this doc を保存させるための public 入口。
+    // 内部の SaveAsync は [RelayCommand] 由来で private なのでラップして公開する。
+    public Task ExecuteSaveAsync() => SaveAsync();
 
     // 自 PendingService.Pending の先頭を CurrentPendingSet に晒す。
     // v0.3 で MainViewModel からこの責務を DocumentViewModel に移した (per-doc 化)。

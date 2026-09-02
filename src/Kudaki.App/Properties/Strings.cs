@@ -131,6 +131,12 @@ public static class Strings
     public static string Dialog_MarkdownExport_Title => Get("Dialog_MarkdownExport_Title");
     public static string Dialog_Markdown_Filter => Get("Dialog_Markdown_Filter");
 
+    // Tab close confirm (t-tab-close)
+    public static string CloseTab_Confirm_Title => Get("CloseTab_Confirm_Title");
+    public static string CloseTab_Confirm_Message_Format => Get("CloseTab_Confirm_Message_Format");
+    public static string CloseTab_Confirm_Message_Untitled => Get("CloseTab_Confirm_Message_Untitled");
+    public static string TabHeader_CloseTooltip => Get("TabHeader_CloseTooltip");
+
     // Arrow diagram
     public static string Arrow_Title_Format => Get("Arrow_Title_Format");
     public static string Arrow_Legend_Line1 => Get("Arrow_Legend_Line1");

@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IFileDialogService _dialogs;
     private readonly IUpdatePromptService _updatePrompt;
     private readonly IPreferencesDialogService _preferencesDialog;
+    private readonly IConfirmDialogService _confirm;
 
     // 開いてるドキュメント一覧 (現状は常に 1 個)。t-tab-control で TabControl.ItemsSource に bind する。
     public ObservableCollection<DocumentViewModel> Documents { get; } = new();
@@ -48,11 +49,13 @@ public sealed partial class MainViewModel : ObservableObject
     public MainViewModel(
         IFileDialogService dialogs,
         IUpdatePromptService updatePrompt,
-        IPreferencesDialogService preferencesDialog)
+        IPreferencesDialogService preferencesDialog,
+        IConfirmDialogService confirm)
     {
         _dialogs = dialogs;
         _updatePrompt = updatePrompt;
         _preferencesDialog = preferencesDialog;
+        _confirm = confirm;
 
         // 初期の空ドキュメントを開いた状態で起動する。
         var initial = new DocumentViewModel(dialogs);
@@ -123,6 +126,46 @@ public sealed partial class MainViewModel : ObservableObject
     // 起動引数 / Named Pipe forward からも同じ経路で来る (App.xaml.cs 経由)。
     [RelayCommand]
     internal Task LoadFromPathAsync(string path) => OpenInNewTabAsync(path);
+
+    // t-tab-close: タブヘッダの × ボタンから呼ばれる。dirty なら保存確認、
+    // 最後のタブは削除せず空 doc にリセットしてアプリ終了を防ぐ。
+    [RelayCommand]
+    private async Task CloseDocument(DocumentViewModel? doc)
+    {
+        if (doc is null) return;
+
+        if (doc.IsDirty.Value)
+        {
+            var message = doc.CurrentFilePath is null
+                ? Strings.CloseTab_Confirm_Message_Untitled
+                : string.Format(Strings.CloseTab_Confirm_Message_Format, Path.GetFileName(doc.CurrentFilePath));
+            var choice = _confirm.ShowSaveDiscardCancel(message, Strings.CloseTab_Confirm_Title);
+            if (choice == ConfirmResult.Cancel) return;
+            if (choice == ConfirmResult.Save)
+            {
+                await doc.ExecuteSaveAsync().ConfigureAwait(true);
+                // SaveAs でキャンセルされた等で dirty のままなら close 中断
+                if (doc.IsDirty.Value) return;
+            }
+            // Discard の場合はそのまま削除に進む
+        }
+
+        // 最後のタブは削除せず空 doc にリセット (アプリ終了しない)
+        if (Documents.Count == 1)
+        {
+            doc.NewDocumentInPlace();
+            return;
+        }
+
+        var index = Documents.IndexOf(doc);
+        var wasActive = ReferenceEquals(ActiveDocument.Value, doc);
+        Documents.Remove(doc);
+        if (wasActive && Documents.Count > 0)
+        {
+            var newIndex = index >= Documents.Count ? Documents.Count - 1 : index;
+            ActiveDocument.Value = Documents[newIndex];
+        }
+    }
 
     // t-tab-open-command: 新規タブとして開く。
     // - 既に同 path のタブがあればそのタブに切り替え (重複タブは作らない)

@@ -172,6 +172,12 @@
   <data name="Dialog_MarkdownExport_Title" xml:space="preserve"><value>Export Markdown</value></data>
   <data name="Dialog_Markdown_Filter" xml:space="preserve"><value>Markdown files (*.md)|*.md|All files (*.*)|*.*</value></data>
 
+  <!-- Tab close confirm (t-tab-close) -->
+  <data name="CloseTab_Confirm_Title" xml:space="preserve"><value>Unsaved changes</value></data>
+  <data name="CloseTab_Confirm_Message_Format" xml:space="preserve"><value>{0} has unsaved changes. Save before closing?</value></data>
+  <data name="CloseTab_Confirm_Message_Untitled" xml:space="preserve"><value>The untitled document has unsaved changes. Save before closing?</value></data>
+  <data name="TabHeader_CloseTooltip" xml:space="preserve"><value>Close tab</value></data>
+
   <!-- Arrow diagram -->
   <data name="Arrow_Title_Format" xml:space="preserve"><value>Arrow Diagram — {0}</value></data>
   <data name="Arrow_Legend_Line1" xml:space="preserve"><value>AON notation (box = task, arrow = predecessor → successor, FS).</value></data>

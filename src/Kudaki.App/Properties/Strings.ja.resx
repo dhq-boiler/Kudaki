@@ -158,6 +158,12 @@
   <data name="Dialog_MarkdownExport_Title" xml:space="preserve"><value>Markdown エクスポート</value></data>
   <data name="Dialog_Markdown_Filter" xml:space="preserve"><value>Markdown ファイル (*.md)|*.md|すべてのファイル (*.*)|*.*</value></data>
 
+  <!-- Tab close confirm (t-tab-close) -->
+  <data name="CloseTab_Confirm_Title" xml:space="preserve"><value>未保存の変更</value></data>
+  <data name="CloseTab_Confirm_Message_Format" xml:space="preserve"><value>{0} の変更が未保存です。保存して閉じますか？</value></data>
+  <data name="CloseTab_Confirm_Message_Untitled" xml:space="preserve"><value>無題のドキュメントに未保存の変更があります。保存して閉じますか？</value></data>
+  <data name="TabHeader_CloseTooltip" xml:space="preserve"><value>タブを閉じる</value></data>
+
   <data name="Arrow_Title_Format" xml:space="preserve"><value>アローダイアグラム — {0}</value></data>
   <data name="Arrow_Legend_Line1" xml:space="preserve"><value>AON 記法 (箱=タスク、矢印=先行→後続、FS)。</value></data>
   <data name="Arrow_Legend_Line2" xml:space="preserve"><value>印はこの階層の外に先行タスクを持つ (親 P の外部からの依存があるタスク)。</value></data>
