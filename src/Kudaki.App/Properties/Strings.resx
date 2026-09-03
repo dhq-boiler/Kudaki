@@ -271,4 +271,6 @@
   <data name="Tree_ContextMenu_RequestBreakdown_NeedsSave" xml:space="preserve"><value>Save the document first — AI agents can only see saved files.</value></data>
   <data name="Tree_ContextMenu_RequestBreakdown_NoAgent" xml:space="preserve"><value>No agent is standing by. The request will be queued until one calls wait_for_request.</value></data>
   <data name="TabHeader_AgentWaitingTooltip" xml:space="preserve"><value>An AI agent is standing by for requests on this tab</value></data>
+  <data name="Tab_Untitled" xml:space="preserve"><value>Untitled</value></data>
+  <data name="Tab_Disambiguated_Format" xml:space="preserve"><value>{0} — {1}</value></data>
 </root>

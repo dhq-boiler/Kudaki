@@ -44,7 +44,9 @@ public sealed class DocumentRegistry
             .Select(d => new DocumentInfo(
                 DocumentId: NormalizeId(d.CurrentFilePath!),
                 FilePath: d.CurrentFilePath!,
-                Title: d.WindowTitle.Value,
+                // ウィンドウタイトル ("Kudaki - <名前>") ではなくファイル名を返す。
+                // 前者だと AI 側にも全 doc が Kudaki のファイルに見える。
+                Title: d.DocumentName.Value,
                 IsActive: ReferenceEquals(d, active),
                 IsDirty: d.IsDirty.Value,
                 Revision: d.GetRevision(),

@@ -251,4 +251,6 @@
   <data name="Tree_ContextMenu_RequestBreakdown_NeedsSave" xml:space="preserve"><value>先にドキュメントを保存してほしいっす。AI からは保存済みファイルしか見えないっす。</value></data>
   <data name="Tree_ContextMenu_RequestBreakdown_NoAgent" xml:space="preserve"><value>AI は待機していません。依頼は wait_for_request が呼ばれるまで積まれたままになります。</value></data>
   <data name="TabHeader_AgentWaitingTooltip" xml:space="preserve"><value>このタブで AI エージェントが依頼を待機中です</value></data>
+  <data name="Tab_Untitled" xml:space="preserve"><value>無題</value></data>
+  <data name="Tab_Disambiguated_Format" xml:space="preserve"><value>{0} — {1}</value></data>
 </root>

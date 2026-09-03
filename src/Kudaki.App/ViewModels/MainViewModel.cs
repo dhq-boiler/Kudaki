@@ -333,9 +333,74 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var doc in e.NewItems?.OfType<DocumentViewModel>() ?? Enumerable.Empty<DocumentViewModel>())
         {
             doc.PendingApprovalArrived += OnPendingApprovalArrived;
-            _approvalSubscriptions[doc] = doc.HasPendingApproval.Subscribe(_ => RefreshApprovalNotification());
+            // 保存先が変わる (新規保存 / 名前を付けて保存) とタブ名も変わるので、
+            // 同名判定を張り直す必要がある。
+            _approvalSubscriptions[doc] = Disposable.Combine(
+                doc.HasPendingApproval.Subscribe(_ => RefreshApprovalNotification()),
+                doc.DocumentName.Subscribe(_ => RefreshTabDisambiguators()));
         }
         RefreshApprovalNotification();
+        RefreshTabDisambiguators();
+    }
+
+    // 同じファイル名のタブが複数あるときだけ、区別できる祖先フォルダ名を添える
+    // (VS Code と同じ考え方)。docs/tasks.wbs.yaml が 2 つ開かれていると
+    // どちらも "tasks.wbs.yaml" になってしまい選べないため。
+    // 親が同名 (どちらも docs) なら、違いが出るところまで遡る。
+    internal void RefreshTabDisambiguators()
+    {
+        var groups = Documents
+            .Where(d => d.CurrentFilePath is not null)
+            .GroupBy(d => Path.GetFileName(d.CurrentFilePath!), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in groups)
+        {
+            var docs = group.ToList();
+            if (docs.Count < 2)
+            {
+                foreach (var d in docs) d.TabDisambiguator.Value = "";
+                continue;
+            }
+
+            // ファイルの 1 つ上から順に遡り、全員の名前が揃わなくなった階層を採用する。
+            var segments = docs
+                .Select(d => AncestorNames(d.CurrentFilePath!))
+                .ToList();
+            var depth = segments.Min(s2 => s2.Count);
+            var chosen = -1;
+            for (var i = 0; i < depth; i++)
+            {
+                var distinct = segments.Select(s2 => s2[i]).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                if (distinct > 1) { chosen = i; break; }
+            }
+
+            for (var d = 0; d < docs.Count; d++)
+            {
+                // どの階層でも区別が付かない (実質同じ場所) なら諦めて素の名前のまま。
+                docs[d].TabDisambiguator.Value = chosen < 0 ? "" : segments[d][chosen];
+            }
+        }
+
+        // 保存前のタブは常に素のまま。
+        foreach (var d in Documents.Where(d => d.CurrentFilePath is null))
+        {
+            d.TabDisambiguator.Value = "";
+        }
+    }
+
+    // ファイルの親フォルダから上へ向かってフォルダ名を並べる (直近が先頭)。
+    private static IReadOnlyList<string> AncestorNames(string filePath)
+    {
+        var names = new List<string>();
+        var dir = Path.GetDirectoryName(Path.GetFullPath(filePath));
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var name = Path.GetFileName(dir);
+            // ルート (C:\) は GetFileName が空になるのでドライブ表記に落とす。
+            names.Add(string.IsNullOrEmpty(name) ? dir.TrimEnd(Path.DirectorySeparatorChar) : name);
+            dir = Path.GetDirectoryName(dir);
+        }
+        return names;
     }
 
     private void OnPendingApprovalArrived(DocumentViewModel doc) => _approvalNotification.NotifyPendingArrived();

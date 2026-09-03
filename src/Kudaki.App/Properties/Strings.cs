@@ -230,4 +230,6 @@ public static class Strings
     public static string Tree_ContextMenu_RequestBreakdown_NeedsSave => Get("Tree_ContextMenu_RequestBreakdown_NeedsSave");
     public static string Tree_ContextMenu_RequestBreakdown_NoAgent => Get("Tree_ContextMenu_RequestBreakdown_NoAgent");
     public static string TabHeader_AgentWaitingTooltip => Get("TabHeader_AgentWaitingTooltip");
+    public static string Tab_Untitled => Get("Tab_Untitled");
+    public static string Tab_Disambiguated_Format => Get("Tab_Disambiguated_Format");
 }

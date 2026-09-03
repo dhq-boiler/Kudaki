@@ -84,10 +84,19 @@ public sealed partial class DocumentViewModel : ObservableObject
     // 「null からの遷移」ではなく「先頭 Set の同一性」で新着を判定する。
     private Guid? _notifiedPendingSetId;
 
-    // TabHeader 表示用: WindowTitle + dirty マーク (*) の computed。
-    // WindowTitle か IsDirty が変わったら再計算して push する。
+    // タブに出すドキュメント名 (ファイル名のみ)。
+    // WindowTitle は "Kudaki - <名前>" だが、それをそのままタブに出すと全タブが
+    // "Kudaki - " で始まって Kudaki 自身のファイルを開いているように見える
+    // (2026-09-03 先生指摘)。タブは名前だけにして、接頭辞はウィンドウタイトル専用にする。
+    public BindableReactiveProperty<string> DocumentName { get; } = new(Strings.Tab_Untitled);
+
+    // 同名ファイルが複数開かれているときに付ける識別子 (親フォルダ名など)。
+    // 空文字なら付けない。値は MainViewModel が全タブを見比べて決める。
+    public BindableReactiveProperty<string> TabDisambiguator { get; } = new("");
+
+    // TabHeader 表示用: ドキュメント名 + 識別子 + dirty マーク (*) の computed。
     public BindableReactiveProperty<string> TabHeaderText { get; }
-        = new(Strings.Main_Title_Untitled);
+        = new(Strings.Tab_Untitled);
 
     public DocumentViewModel(IFileDialogService dialogs)
     {
@@ -108,13 +117,21 @@ public sealed partial class DocumentViewModel : ObservableObject
         ((System.Collections.Specialized.INotifyCollectionChanged)AgentRequests.Queue)
             .CollectionChanged += (_, _) => PendingAgentRequestCount.Value = AgentRequests.Queue.Count;
 
-        // WindowTitle と IsDirty のどちらかが動いたら TabHeaderText を更新。
-        // CombineLatest は R3 の Observable 拡張。両方の最新値をペアで流す。
-        WindowTitle.CombineLatest(IsDirty, (t, d) => FormatTabHeader(t, d))
-            .Subscribe(v => TabHeaderText.Value = v);
+        // 名前 / 識別子 / dirty のどれかが動いたら TabHeaderText を更新。
+        DocumentName.Subscribe(_ => RefreshTabHeader());
+        TabDisambiguator.Subscribe(_ => RefreshTabHeader());
+        IsDirty.Subscribe(_ => RefreshTabHeader());
     }
 
-    private static string FormatTabHeader(string title, bool dirty) => dirty ? $"{title} *" : title;
+    private void RefreshTabHeader()
+    {
+        var name = DocumentName.Value;
+        var suffix = TabDisambiguator.Value;
+        var label = string.IsNullOrEmpty(suffix)
+            ? name
+            : string.Format(Strings.Tab_Disambiguated_Format, name, suffix);
+        TabHeaderText.Value = IsDirty.Value ? $"{label} *" : label;
+    }
 
     // t-tab-close 用: MainViewModel から this doc を保存させるための public 入口。
     // 内部の SaveAsync は [RelayCommand] 由来で private なのでラップして公開する。
@@ -366,6 +383,7 @@ public sealed partial class DocumentViewModel : ObservableObject
     {
         _currentFilePath = path;
         HasFilePath.Value = path is not null;
+        DocumentName.Value = path is null ? Strings.Tab_Untitled : Path.GetFileName(path);
         WindowTitle.Value = path is null
             ? Strings.Main_Title_Untitled
             : string.Format(Strings.Main_Title_Format, Path.GetFileName(path));
