@@ -77,7 +77,12 @@ public sealed partial class DocumentViewModel : ObservableObject
     {
         _dialogs = dialogs;
         LoadDocument(new WbsDocument());
-        SelectedTask.Subscribe(_ => RecomputeSelectablePredecessors());
+        SelectedTask.Subscribe(_ =>
+        {
+            // 別のタスクへ移ったら編集は確定して抜ける (Excel でセル移動するとコミットされるのと同じ)。
+            EndEditTitle(revert: false);
+            RecomputeSelectablePredecessors();
+        });
         WireOwnPendingQueue();
 
         // WindowTitle と IsDirty のどちらかが動いたら TabHeaderText を更新。
@@ -187,6 +192,34 @@ public sealed partial class DocumentViewModel : ObservableObject
             IsDirty.Value = true;
             StatusMessage.Value = Strings.Status_AiProposalApplied;
         }
+    }
+
+    // ---- タイトル編集モード (F2 / ダブルクリック) ----
+    // 編集中のノードと開始時のタイトルを保持する。Escape で開始時の値に戻すため。
+    private TaskNodeViewModel? _editingTask;
+    private string? _editingOriginalTitle;
+
+    [RelayCommand]
+    private void BeginEditSelectedTitle()
+    {
+        var task = SelectedTask.Value;
+        if (task is null || ReferenceEquals(_editingTask, task)) return;
+        EndEditTitle(revert: false);
+        _editingTask = task;
+        _editingOriginalTitle = task.Title;
+        task.IsEditing.Value = true;
+    }
+
+    // 編集モードを抜ける。revert=true なら開始時のタイトルに戻す (Escape)。
+    // Title の binding は UpdateSourceTrigger=PropertyChanged なので、確定側は何もしなくてよい。
+    public void EndEditTitle(bool revert)
+    {
+        var task = _editingTask;
+        if (task is null) return;
+        _editingTask = null;
+        if (revert && _editingOriginalTitle is not null) task.Title = _editingOriginalTitle;
+        _editingOriginalTitle = null;
+        task.IsEditing.Value = false;
     }
 
     [RelayCommand]

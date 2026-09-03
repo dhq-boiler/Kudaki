@@ -22,6 +22,11 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     public BindableReactiveProperty<bool> IsExpanded { get; } = new(true);
     public BindableReactiveProperty<bool> IsSelected { get; } = new(false);
 
+    // タイトルを編集中か。false のあいだは TextBlock 表示で、クリックしても編集に入らない。
+    // 編集開始は F2 かダブルクリックのみ (2026-09-03 先生要望: 単クリックで即編集は誤爆する)。
+    // 同時に編集できるのは 1 ノードだけで、切り替えは DocumentViewModel が面倒を見る。
+    public BindableReactiveProperty<bool> IsEditing { get; } = new(false);
+
     public TaskNodeViewModel(TaskNode model, TaskNodeViewModel? parent)
     {
         _model = model;

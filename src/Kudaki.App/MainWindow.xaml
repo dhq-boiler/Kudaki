@@ -398,6 +398,7 @@
                         <!-- Tree にフォーカスがあるときのみ発火するキー -->
                         <KeyBinding Key="Enter" Command="{Binding AddSiblingToSelectedCommand}"/>
                         <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding AddChildToSelectedCommand}"/>
+                        <KeyBinding Key="F2" Command="{Binding BeginEditSelectedTitleCommand}"/>
                         <KeyBinding Key="Delete" Command="{Binding DeleteSelectedCommand}"/>
                         <KeyBinding Key="Tab" Command="{Binding IndentSelectedCommand}"/>
                         <KeyBinding Key="Tab" Modifiers="Shift" Command="{Binding OutdentSelectedCommand}"/>
@@ -413,6 +414,7 @@
                                  階層深さに関係なくツリー右端に揃う。
                                  Tag は MainViewModel を掴んで ContextMenu 内から届くように。 -->
                             <Grid HorizontalAlignment="Stretch"
+                                  MouseLeftButtonDown="TreeItemRow_MouseLeftButtonDown"
                                   Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
                                 <Grid.ContextMenu>
                                     <ContextMenu>
@@ -442,13 +444,35 @@
                                     <ColumnDefinition Width="24"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBox Grid.Column="0"
-                                         Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource InlineTitleBox}"
-                                         MinWidth="0"
-                                         HorizontalAlignment="Stretch"
-                                         PreviewMouseLeftButtonDown="TitleBox_PreviewMouseLeftButtonDown"
-                                         PreviewKeyDown="TitleBox_PreviewKeyDown"/>
+                                <!-- タイトル: 通常は TextBlock、編集中だけ TextBox に差し替える。
+                                     編集に入るのは F2 かダブルクリックのみ (単クリックは選択だけ)。
+                                     2 つを重ねて Visibility で切り替える方式にしているのは、
+                                     TextBox の Padding/フォントをそのまま流用して行高を揺らさないため。 -->
+                                <Grid Grid.Column="0">
+                                    <TextBlock Text="{Binding Title}"
+                                               Padding="4,2"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource ControlDefaultForeground}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEditing.Value}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InlineTitleBox}"
+                                             MinWidth="0"
+                                             HorizontalAlignment="Stretch"
+                                             Visibility="{Binding IsEditing.Value, Converter={StaticResource BoolToVis}}"
+                                             IsVisibleChanged="TitleBox_IsVisibleChanged"
+                                             LostKeyboardFocus="TitleBox_LostKeyboardFocus"
+                                             PreviewKeyDown="TitleBox_PreviewKeyDown"/>
+                                </Grid>
 
                                 <!-- 階層レベルバッジ -->
                                 <Border Grid.Column="1"

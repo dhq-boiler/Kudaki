@@ -104,7 +104,7 @@
   <data name="Titlebar_UpdateAvailable_Prefix" xml:space="preserve"><value>Update available: </value></data>
 
   <!-- Status bar hint -->
-  <data name="StatusBar_ShortcutHint" xml:space="preserve"><value>Enter=Add sibling  Alt+Enter=Add child  Tab=Indent  Shift+Tab=Outdent  Ctrl+↑↓=Reorder  Delete=Delete</value></data>
+  <data name="StatusBar_ShortcutHint" xml:space="preserve"><value>F2=Rename  Enter=Add sibling  Alt+Enter=Add child  Tab=Indent  Shift+Tab=Outdent  Ctrl+↑↓=Reorder  Delete=Delete</value></data>
 
   <!-- Tree -->
   <data name="Tree_ContextMenu_ShowArrowDiagram" xml:space="preserve"><value>Show Arrow Diagram</value></data>

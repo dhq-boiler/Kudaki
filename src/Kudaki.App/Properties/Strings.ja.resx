@@ -96,7 +96,7 @@
   <data name="Caption_Close" xml:space="preserve"><value>閉じる</value></data>
   <data name="Titlebar_UpdateAvailable_Prefix" xml:space="preserve"><value>更新あり: </value></data>
 
-  <data name="StatusBar_ShortcutHint" xml:space="preserve"><value>Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除</value></data>
+  <data name="StatusBar_ShortcutHint" xml:space="preserve"><value>F2=名前変更  Enter=同階層追加  Alt+Enter=子追加  Tab=インデント  Shift+Tab=アウトデント  Ctrl+↑↓=並替  Delete=削除</value></data>
 
   <data name="Tree_ContextMenu_ShowArrowDiagram" xml:space="preserve"><value>アローダイアグラムを表示</value></data>
   <data name="Tree_Tooltip_HierarchyLevel" xml:space="preserve"><value>階層レベル</value></data>

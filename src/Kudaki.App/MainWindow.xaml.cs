@@ -138,43 +138,74 @@ public partial class MainWindow : Window
         }
     }
 
-    // ツリー行のタイトル TextBox をクリックしても親 TreeViewItem に click が届かず
-    // (TextBox が食う) 選択が変わらない WPF の既定挙動を補正する。Preview で先に
-    // TreeViewItem.IsSelected=true にしてから、TextBox にフォーカスは普通に渡す
-    // (Handled=false のまま) → 選択 + 編集開始が 1 クリックで両立する。
-    private void TitleBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    // ツリー行のダブルクリックでタイトル編集に入る (2026-09-03 先生要望)。
+    // 単クリックは選択だけ。TreeViewItem 既定のダブルクリック = 開閉トグルは
+    // e.Handled で止める (編集したいだけなのに畳まれると邪魔なので)。
+    private void TreeItemRow_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not TextBox tb) return;
-        var tvi = FindAncestor<TreeViewItem>(tb);
-        if (tvi != null && !tvi.IsSelected)
-        {
-            tvi.IsSelected = true;
-        }
+        if (e.ClickCount != 2) return;
+        if (sender is not FrameworkElement row || row.DataContext is not TaskNodeViewModel task) return;
+        var doc = Vm.ActiveDocument.Value;
+        if (doc is null) return;
+
+        doc.SelectedTask.Value = task;
+        doc.BeginEditSelectedTitleCommand.Execute(null);
+        e.Handled = true;
     }
 
-    // 同じくタイトル TextBox がフォーカスを掴んでいる間、Up/Down/Home/End が
-    // TextBox 内キャレット移動として消費されてツリーナビゲーションが効かない。
-    // これらは VM 側の Select*Task コマンドに流して SelectedTask を直接動かす
-    // (Excel の「セル編集中でも矢印で移動する」相当)。
-    // Left/Right はキャレット移動として残す (単語単位の編集を潰さない)。
+    // 編集モードに入って TextBox が現れた瞬間にフォーカスを渡して全選択する。
+    // Visibility 反映直後はまだフォーカスを受け取れないので Input 優先度で 1 回遅らせる。
+    private void TitleBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not TextBox tb || !tb.IsVisible) return;
+        tb.Dispatcher.BeginInvoke(
+            new Action(() => { tb.Focus(); tb.SelectAll(); }),
+            System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    // 別の場所をクリックされたら確定して編集を抜ける。
+    private void TitleBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        Vm.ActiveDocument.Value?.EndEditTitle(revert: false);
+    }
+
+    // 編集中のキー処理。
+    //   Enter    確定して編集を抜ける (抜けた後の Enter は従来どおり同階層追加)
+    //   Escape   編集開始時のタイトルに戻して抜ける
+    //   Up/Down  確定して隣の行へ (Excel でセル編集中に上下を押したときと同じ)
+    // Left/Right/Home/End はキャレット移動として TextBox に残す。編集モードが
+    // 明示的になったので、編集中の矢印は文字単位の移動である方が自然。
     private void TitleBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (sender is not TextBox tb) return;
+        var doc = Vm.ActiveDocument.Value;
+        if (doc is null) return;
+
+        // EndEditTitle 後は TextBox が Collapsed になるので、先に戻り先を掴んでおく。
+        var tvi = FindAncestor<TreeViewItem>(tb);
+
         switch (e.Key)
         {
+            case Key.Enter:
+                doc.EndEditTitle(revert: false);
+                tvi?.Focus();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                doc.EndEditTitle(revert: true);
+                tvi?.Focus();
+                e.Handled = true;
+                break;
             case Key.Down:
+                doc.EndEditTitle(revert: false);
+                tvi?.Focus();
                 Vm.SelectNextTaskCommand.Execute(null);
                 e.Handled = true;
                 break;
             case Key.Up:
+                doc.EndEditTitle(revert: false);
+                tvi?.Focus();
                 Vm.SelectPreviousTaskCommand.Execute(null);
-                e.Handled = true;
-                break;
-            case Key.Home:
-                Vm.SelectFirstTaskCommand.Execute(null);
-                e.Handled = true;
-                break;
-            case Key.End:
-                Vm.SelectLastTaskCommand.Execute(null);
                 e.Handled = true;
                 break;
         }
