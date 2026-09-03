@@ -206,4 +206,16 @@ public static class Strings
     public static string Preferences_Notify_Flash_Label => Get("Preferences_Notify_Flash_Label");
     public static string Preferences_Notify_Restore_Label => Get("Preferences_Notify_Restore_Label");
     public static string Preferences_Notify_Repeat_Label => Get("Preferences_Notify_Repeat_Label");
+    public static string Common_Close => Get("Common_Close");
+    public static string Menu_Help_About => Get("Menu_Help_About");
+    public static string About_Title => Get("About_Title");
+    public static string About_Tagline => Get("About_Tagline");
+    public static string About_Version_Format => Get("About_Version_Format");
+    public static string About_Copyright => Get("About_Copyright");
+    public static string About_License_Label => Get("About_License_Label");
+    public static string About_License_Value => Get("About_License_Value");
+    public static string About_Repository_Label => Get("About_Repository_Label");
+    public static string About_Repository_Url => Get("About_Repository_Url");
+    public static string About_OssHeader => Get("About_OssHeader");
+    public static string About_OssIntro => Get("About_OssIntro");
 }

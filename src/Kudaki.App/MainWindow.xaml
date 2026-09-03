@@ -214,6 +214,9 @@
                 <MenuItem Header="{x:Static loc:Strings.Menu_Help}">
                     <MenuItem Header="{x:Static loc:Strings.Menu_Help_OpenRepository}"
                               Command="{Binding OpenRepositoryCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="{x:Static loc:Strings.Menu_Help_About}"
+                              Command="{Binding OpenAboutCommand}"/>
                 </MenuItem>
             </Menu>
 

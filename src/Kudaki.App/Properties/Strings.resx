@@ -247,4 +247,16 @@
   <data name="Preferences_Notify_Flash_Label" xml:space="preserve"><value>Flash the taskbar button</value></data>
   <data name="Preferences_Notify_Restore_Label" xml:space="preserve"><value>Restore the window if minimized (without focusing it)</value></data>
   <data name="Preferences_Notify_Repeat_Label" xml:space="preserve"><value>Repeat every (seconds, 0 = do not repeat)</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Menu_Help_About" xml:space="preserve"><value>About Kudaki</value></data>
+  <data name="About_Title" xml:space="preserve"><value>About Kudaki</value></data>
+  <data name="About_Tagline" xml:space="preserve"><value>A free and open source WBS editor. Break work down fast, keep it in YAML.</value></data>
+  <data name="About_Version_Format" xml:space="preserve"><value>Version {0}</value></data>
+  <data name="About_Copyright" xml:space="preserve"><value>Copyright (c) dhq_boiler</value></data>
+  <data name="About_License_Label" xml:space="preserve"><value>License</value></data>
+  <data name="About_License_Value" xml:space="preserve"><value>MIT License</value></data>
+  <data name="About_Repository_Label" xml:space="preserve"><value>Repository</value></data>
+  <data name="About_Repository_Url" xml:space="preserve"><value>https://github.com/dhq-boiler/Kudaki</value></data>
+  <data name="About_OssHeader" xml:space="preserve"><value>Open source components</value></data>
+  <data name="About_OssIntro" xml:space="preserve"><value>Kudaki is built on the following open source software. Thanks to their authors and maintainers.</value></data>
 </root>

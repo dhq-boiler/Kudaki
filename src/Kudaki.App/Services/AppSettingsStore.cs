@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kudaki.App.Models;
@@ -51,9 +52,18 @@ public sealed class AutoApplyPolicy
     public bool Enabled { get; set; } = false;
 }
 
+// Load の結果。Failed=true は「ファイルはあるのに読めなかった」を意味する。
+// ファイルが無いだけ (初回起動) は Failed=false + 既定値で返す。
+public sealed record SettingsLoadResult(AppSettings Settings, bool Failed);
+
 public interface IAppSettingsStore
 {
+    // 失敗を区別せず既定値で潰す簡易版。設定を「読んで書き戻す」用途には使わないこと。
     AppSettings Load();
+
+    // 読み取り失敗を呼び出し元に伝える版。既存データを上書きする可能性がある処理は必ずこちらを使う。
+    SettingsLoadResult LoadDetailed();
+
     void Save(AppSettings settings);
 }
 
@@ -83,25 +93,45 @@ public sealed class JsonAppSettingsStore : IAppSettingsStore
         _path = Path.Combine(dir, "settings.json");
     }
 
-    public AppSettings Load()
+    public AppSettings Load() => LoadDetailed().Settings;
+
+    // 2026-09-03 の事故対応: 旧実装は読み取り例外を握り潰して常に既定値を返していた。
+    // アップデート時は新旧プロセスが一瞬重なり、旧プロセスの書き込み途中 (truncate 済みの
+    // 空 / 途中ファイル) を新プロセスが読む窓がある。そこで既定値を返すと、呼び出し元が
+    // 「タブは 0 個」と信じて空リストを書き戻し、開いていたタブ一覧が永久に消える。
+    // 対策は 2 段構え: (1) 短いリトライで一過性の失敗を吸収する
+    //                 (2) それでも駄目なら Failed=true と正直に伝えて上書きを止めさせる
+    public SettingsLoadResult LoadDetailed()
     {
-        try
+        if (!File.Exists(_path)) return new SettingsLoadResult(new AppSettings(), false);
+
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            if (!File.Exists(_path)) return new AppSettings();
-            var json = File.ReadAllText(_path);
-            return JsonSerializer.Deserialize<AppSettings>(json, Options) ?? new AppSettings();
+            try
+            {
+                var json = File.ReadAllText(_path);
+                var parsed = JsonSerializer.Deserialize<AppSettings>(json, Options);
+                if (parsed is not null) return new SettingsLoadResult(parsed, false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Kudaki.Settings] load attempt {attempt} failed: {ex.Message}");
+            }
+            Thread.Sleep(120);
         }
-        catch
-        {
-            return new AppSettings();
-        }
+        return new SettingsLoadResult(new AppSettings(), true);
     }
 
     public void Save(AppSettings settings)
     {
         try
         {
-            File.WriteAllText(_path, JsonSerializer.Serialize(settings, Options));
+            // 一時ファイルに書いてから置換する。File.WriteAllText を直接当てると
+            // truncate と write の間に窓ができ、同時に読んだ側が空ファイルを掴む。
+            var json = JsonSerializer.Serialize(settings, Options);
+            var tmp = _path + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, _path, overwrite: true);
         }
         catch
         {

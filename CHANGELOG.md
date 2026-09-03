@@ -5,6 +5,16 @@ All notable changes to Kudaki are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-03
+
+### Added
+
+- **About dialog.** Help -> About Kudaki opens a version dialog showing the Kudaki mark, the running version, the license, a link to the repository, and the list of open source components Kudaki is built on, each with its version, license, and project URL.
+
+### Fixed
+
+- **Open tabs could be lost permanently after an update.** `settings.json` was written non-atomically (truncate, then write), so a process reading it during that window saw an empty or partial file. The reader swallowed the exception, fell back to default settings, restored no tabs, and then immediately wrote `openDocuments: []` back over the real list. Settings are now written to a temporary file and moved into place, reads are retried before being given up on, and a session that could not read the settings file refuses to write to it at all, so a transient read failure can no longer destroy the tab list.
+
 ## [0.4.0] - 2026-09-03
 
 ### Added

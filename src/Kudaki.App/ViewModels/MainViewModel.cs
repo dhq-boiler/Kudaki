@@ -33,6 +33,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IConfirmDialogService _confirm;
     private readonly IAppSettingsStore _settingsStore;
     private readonly IApprovalNotificationService _approvalNotification;
+    private readonly IAboutDialogService _aboutDialog;
 
     // 開いてるドキュメント一覧 (現状は常に 1 個)。t-tab-control で TabControl.ItemsSource に bind する。
     public ObservableCollection<DocumentViewModel> Documents { get; } = new();
@@ -54,7 +55,8 @@ public sealed partial class MainViewModel : ObservableObject
         IPreferencesDialogService preferencesDialog,
         IConfirmDialogService confirm,
         IAppSettingsStore settingsStore,
-        IApprovalNotificationService approvalNotification)
+        IApprovalNotificationService approvalNotification,
+        IAboutDialogService aboutDialog)
     {
         _dialogs = dialogs;
         _updatePrompt = updatePrompt;
@@ -62,6 +64,7 @@ public sealed partial class MainViewModel : ObservableObject
         _confirm = confirm;
         _settingsStore = settingsStore;
         _approvalNotification = approvalNotification;
+        _aboutDialog = aboutDialog;
 
         // タブの増減に追従して承認待ち通知の購読を張り替える。
         // Add/Remove の経路が複数ある (新規 / 開く / 復元 / 閉じる) ので、
@@ -111,6 +114,9 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenPreferences() => _preferencesDialog.Show();
 
+    [RelayCommand]
+    private void OpenAbout() => _aboutDialog.Show();
+
     // Ctrl+N / ファイル→新規。空タブが既にあればそれを再利用、なければ新規タブを作ってアクティブ化。
     [RelayCommand]
     private void NewDocument()
@@ -144,9 +150,25 @@ public sealed partial class MainViewModel : ObservableObject
     // App.OnStartup から MainWindow ctor 完了後に呼ぶ。壊れたファイルはスキップして継続。
     // 起動 arg (hasStartupFile) の LoadFromPathAsync とは順序で共存する (OpenInNewTabAsync が
     // 同 path 重複を防ぐので、arg と settings が被っても 1 タブに収まる)。
+    // 設定が読めなかった session では一切 persist しない。
+    // 既定値 (openDocuments 空) を書き戻すと、開いていたタブ一覧を永久に失うため。
+    // 次回起動で正しく読めればそのまま元に戻る。
+    private bool _settingsUnreadable;
+
     public async Task RestoreOpenDocumentsAsync()
     {
-        var settings = _settingsStore.Load();
+        var loaded = _settingsStore.LoadDetailed();
+        if (loaded.Failed)
+        {
+            // 2026-09-03 の事故: アップデート時に新旧プロセスが重なり、書き込み途中の
+            // settings.json を読んで既定値に落ち、その直後 watcher が [] を書いて
+            // タブ 4 個が消えた。読めなかったときは触らないのが唯一の正解。
+            _settingsUnreadable = true;
+            System.Diagnostics.Debug.WriteLine("[Kudaki.Restore] settings unreadable; persistence disabled for this session");
+            return;
+        }
+
+        var settings = loaded.Settings;
         if (settings.OpenDocuments is null || settings.OpenDocuments.Count == 0) return;
 
         foreach (var path in settings.OpenDocuments)
@@ -177,9 +199,17 @@ public sealed partial class MainViewModel : ObservableObject
     // Language 等の既存 field を保つため Load → 部分上書き → Save の順で操作する。
     public void PersistOpenDocuments()
     {
+        if (_settingsUnreadable) return;
         try
         {
-            var settings = _settingsStore.Load();
+            var loaded = _settingsStore.LoadDetailed();
+            if (loaded.Failed)
+            {
+                // 書き戻し直前の読みでも失敗したら、この session はもう settings.json に触らない。
+                _settingsUnreadable = true;
+                return;
+            }
+            var settings = loaded.Settings;
             settings.OpenDocuments = Documents
                 .Where(d => d.CurrentFilePath is not null)
                 .Select(d => d.CurrentFilePath!)

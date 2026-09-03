@@ -227,4 +227,16 @@
   <data name="Preferences_Notify_Flash_Label" xml:space="preserve"><value>タスクバーのボタンを点滅させる</value></data>
   <data name="Preferences_Notify_Restore_Label" xml:space="preserve"><value>最小化中ならウィンドウを復元する (フォーカスは移さない)</value></data>
   <data name="Preferences_Notify_Repeat_Label" xml:space="preserve"><value>反応がないとき繰り返す間隔 (秒、0 で繰り返さない)</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>閉じる</value></data>
+  <data name="Menu_Help_About" xml:space="preserve"><value>Kudaki について</value></data>
+  <data name="About_Title" xml:space="preserve"><value>Kudaki について</value></data>
+  <data name="About_Tagline" xml:space="preserve"><value>無償・オープンソースの WBS エディター。素早く砕いて、YAML で持ち歩く。</value></data>
+  <data name="About_Version_Format" xml:space="preserve"><value>バージョン {0}</value></data>
+  <data name="About_Copyright" xml:space="preserve"><value>Copyright (c) dhq_boiler</value></data>
+  <data name="About_License_Label" xml:space="preserve"><value>ライセンス</value></data>
+  <data name="About_License_Value" xml:space="preserve"><value>MIT License</value></data>
+  <data name="About_Repository_Label" xml:space="preserve"><value>リポジトリ</value></data>
+  <data name="About_Repository_Url" xml:space="preserve"><value>https://github.com/dhq-boiler/Kudaki</value></data>
+  <data name="About_OssHeader" xml:space="preserve"><value>オープンソースコンポーネント</value></data>
+  <data name="About_OssIntro" xml:space="preserve"><value>Kudaki は以下のオープンソースソフトウェアを利用しています。作者・メンテナの皆さんに感謝します。</value></data>
 </root>
