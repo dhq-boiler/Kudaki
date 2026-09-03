@@ -346,9 +346,21 @@ public sealed partial class MainViewModel : ObservableObject
     // 同じファイル名のタブが複数あるときだけ、区別できる祖先フォルダ名を添える
     // (VS Code と同じ考え方)。docs/tasks.wbs.yaml が 2 つ開かれていると
     // どちらも "tasks.wbs.yaml" になってしまい選べないため。
-    // 親が同名 (どちらも docs) なら、違いが出るところまで遡る。
+    //
+    // 手順は 2 段:
+    //   1. 全員に共通する直上フォルダを飛ばす (どちらも docs/ なら docs は区別に寄与しない)
+    //   2. 残りから、全員がユニークになる最小の階層数だけ取る
+    // 1 だけだと 3 つ以上のときに割れ残る (A/docs, B/docs, A/legacy で docs が 2 つ並ぶ)。
+    // 2 だけだと共通の docs が全ラベルに付いて冗長になる。両方やって初めて
+    // "VisualAudioRoutingApp" / "ClassDesign" のような最短で一意なラベルになる。
     internal void RefreshTabDisambiguators()
     {
+        // 保存前のタブは常に素のまま。
+        foreach (var d in Documents.Where(d => d.CurrentFilePath is null))
+        {
+            d.TabDisambiguator.Value = "";
+        }
+
         var groups = Documents
             .Where(d => d.CurrentFilePath is not null)
             .GroupBy(d => Path.GetFileName(d.CurrentFilePath!), StringComparer.OrdinalIgnoreCase);
@@ -362,31 +374,54 @@ public sealed partial class MainViewModel : ObservableObject
                 continue;
             }
 
-            // ファイルの 1 つ上から順に遡り、全員の名前が揃わなくなった階層を採用する。
-            var segments = docs
-                .Select(d => AncestorNames(d.CurrentFilePath!))
-                .ToList();
-            var depth = segments.Min(s2 => s2.Count);
-            var chosen = -1;
-            for (var i = 0; i < depth; i++)
+            var paths = docs.Select(d => AncestorNames(d.CurrentFilePath!)).ToList();
+            var depth = paths.Min(p => p.Count);
+
+            // 1. 全員一致している直上フォルダを飛ばす。
+            var skip = 0;
+            while (skip < depth && paths.All(p =>
+                       string.Equals(p[skip], paths[0][skip], StringComparison.OrdinalIgnoreCase)))
             {
-                var distinct = segments.Select(s2 => s2[i]).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-                if (distinct > 1) { chosen = i; break; }
+                skip++;
             }
 
-            for (var d = 0; d < docs.Count; d++)
+            if (skip >= depth)
             {
-                // どの階層でも区別が付かない (実質同じ場所) なら諦めて素の名前のまま。
-                docs[d].TabDisambiguator.Value = chosen < 0 ? "" : segments[d][chosen];
+                // 比較できる範囲が全部同じ。これ以上は足しても区別できないので諦める。
+                foreach (var d in docs) d.TabDisambiguator.Value = "";
+                continue;
             }
-        }
 
-        // 保存前のタブは常に素のまま。
-        foreach (var d in Documents.Where(d => d.CurrentFilePath is null))
-        {
-            d.TabDisambiguator.Value = "";
+            // 2. ユニークになるまで階層を積む。上限まで行っても割れないならそこで打ち切る。
+            var take = 1;
+            while (skip + take < depth && !AllUnique(paths, skip, take)) take++;
+
+            for (var i = 0; i < docs.Count; i++)
+            {
+                docs[i].TabDisambiguator.Value = FormatSegments(paths[i], skip, take);
+            }
         }
     }
+
+    private static bool AllUnique(List<IReadOnlyList<string>> paths, int skip, int take)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in paths)
+        {
+            if (!seen.Add(SegmentKey(path, skip, take))) return false;
+        }
+        return true;
+    }
+
+    // 区切り文字に \0 を使う。フォルダ名には現れないので "a\b" と "a", "b" が衝突しない。
+    private static string SegmentKey(IReadOnlyList<string> path, int skip, int take) =>
+        string.Join('\0', Enumerable.Range(skip, take).Select(i => path[i]));
+
+    // 表示用。AncestorNames は「近い順」なので、パス順 (外側 → 内側) に戻して連結する。
+    // 区切りは '/' 固定。Windows の '\' は日本語フォントだと '¥' に見えて
+    // "A¥docs" が通貨表記のように読めてしまうため。
+    private static string FormatSegments(IReadOnlyList<string> path, int skip, int take) =>
+        string.Join('/', Enumerable.Range(skip, take).Select(i => path[i]).Reverse());
 
     // ファイルの親フォルダから上へ向かってフォルダ名を並べる (直近が先頭)。
     private static IReadOnlyList<string> AncestorNames(string filePath)
