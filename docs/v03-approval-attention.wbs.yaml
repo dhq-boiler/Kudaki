@@ -1,0 +1,120 @@
+version: 2
+title: Kudaki v0.3.1 (approval attention) — 承認待ちに気づかせる
+createdAt: 2026-09-03T00:00:00.0000000Z
+modifiedAt: 2026-09-03T07:10:00.0000000Z
+tasks:
+- id: sec-background
+  title: 背景・目的
+  notes: >
+    dogfood 中の実害: AI が propose_changes を投げても先生が別アプリで作業していて
+    承認 UI に気づかず、5 分の default timeout で失敗する事象が頻発している。
+
+    現状 PendingChangesService.SubmitAsync は Pending コレクションに足すだけで、
+    音・点滅・前面化・バッジのいずれの通知手段も持たない。さらに非アクティブタブへの
+    proposal はそのタブに切り替えないと Diff Overlay が出ない
+    (MainWindow.xaml の「タブ切替バッジで誘導する予定」コメントが未実装のまま)。
+
+    方針は「段階的エスカレーション」(2026-09-03 先生の判断)。
+    到着時にビープ + タスクバー点滅 + タブバッジ、最小化中なら非アクティブ復元。
+    フォアグラウンド奪取はしない (他アプリでのタイピングを奪う事故を避ける)。
+    無反応が続く間は一定間隔で再催促する。
+- id: sec-core
+  title: 通知コア実装
+  children:
+  - id: t-notify-service
+    title: IApprovalNotificationService / WpfApprovalNotificationService の新設
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。Services/IApprovalNotificationService.cs + WpfApprovalNotificationService.cs を新設。MainWindow ctor から MainViewModel に注入 (既存の WpfFileDialogService と同 pattern)。API は NotifyPendingArrived() / Clear() の 2 本に絞った (inactiveTabTitle は使い道が無かったので YAGNI で落とした)。
+  - id: t-beep
+    title: ビープ音 (System.Media.SystemSounds)
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。SystemSounds.Exclamation.Play()。設定 Sound で on/off。
+  - id: t-flash-taskbar
+    title: タスクバー点滅 (FlashWindowEx P/Invoke)
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。user32 FlashWindowEx を P/Invoke。FLASHW_ALL | FLASHW_TIMERNOFG でフォアグラウンドになるまで継続、Clear() で FLASHW_STOP。
+  - id: t-restore-if-minimized
+    title: 最小化中なら非アクティブ復元 (SW_SHOWNOACTIVATE)
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。ShowWindow(hwnd, SW_SHOWNOACTIVATE)。実測で「Fork がフォアグラウンドのまま Kudaki だけ復元」を確認 (外部プロセス経由 / WPF 内経由の両方)。フォーカス奪取なし。
+  - id: t-taskbar-overlay
+    title: タスクバー ProgressState で待機を可視化
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。TaskbarItemInfo.ProgressState = Paused + ProgressValue = 1.0。Clear() で None に戻す。点滅終了後も残る静的サイン。
+  - id: t-escalation-timer
+    title: 無反応時の再催促タイマー
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。DispatcherTimer (既定 30 秒)。到着時に既にアクティブなら起動しない。Window.Activated で停止 (気づいたとみなす)、Clear() でも停止。
+- id: sec-tab-badge
+  title: 非アクティブタブへの誘導
+  children:
+  - id: t-doc-has-pending
+    title: DocumentViewModel に HasPendingApproval と到着イベントを追加
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。DocumentViewModel に HasPendingApproval と PendingApprovalArrived を追加。新着判定は「null からの遷移」ではなく先頭 Set の Id 比較にした (A→B と連続したとき B でも鳴らすため)。MainViewModel は Documents.CollectionChanged 1 箇所で購読を張り替える。
+  - id: t-tab-badge-ui
+    title: TabControl.ItemTemplate に承認待ちバッジ
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。TabControl.ItemTemplate に Ellipse (WarningGlyphForeground)。0.5 秒 AutoReverse の opacity アニメで緩く明滅。スクショで表示を確認済み。
+- id: sec-settings
+  title: 設定
+  children:
+  - id: t-settings-model
+    title: AppSettings に ApprovalNotification を追加
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。AppSettings.ApprovalNotification に Sound / FlashTaskbar / RestoreIfMinimized / RepeatIntervalSeconds。既定は全部 on + 30 秒。
+  - id: t-settings-ui
+    title: Preferences の MCP カテゴリに通知設定を追加
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      ✅ 実装済 2026-09-03。Preferences の MCP カテゴリに AutoApply の下へ Separator + 見出し + checkbox 3 個 + 間隔 TextBox。ja/en 両 resx に文字列追加。
+- id: sec-later
+  title: 後続候補 (今回スコープ外)
+  children:
+  - id: t-deadline-countdown
+    title: Diff Overlay にタイムアウト残り時間を表示
+    estimateHours: 3
+    notes: >
+      defer。PendingChangeSet に DeadlineUtc を持たせ、Overlay に「あと N 秒」を出す。
+      気づいた後に「まだ間に合うのか」が分かる価値はあるが、通知コアより優先度は低い。
+  - id: t-toast
+    title: Windows トースト通知
+    estimateHours: 5
+    notes: >
+      defer。Kudaki が最小化されていてもデスクトップ右下に出せるが、
+      AppUserModelID の登録やパッケージ ID 周りの手当てが要るので段階的エスカレーションの
+      実効性を dogfood で見てから判断する。
+  - id: t-timeout-policy
+    title: タイムアウト既定値の見直し
+    estimateHours: 1
+    notes: >
+      defer。通知を入れても離席中は結局落ちる。default 300 秒を伸ばすか、
+      「タイムアウトせず溜める」モードを足すかは dogfood の実測を見て決める。
+- id: sec-verify
+  title: 動作確認
+  children:
+  - id: t-dogfood
+    title: 実 dogfood (Claude Code から propose して気づけるか)
+    estimateHours: 2
+    remainingHours: 2
+    notes: >
+      ✅ 初回 dogfood 済 2026-09-03。Kudaki 最小化 + 別アプリ作業中に propose → 先生が気づいて承認まで到達 (それまでは timeout 頻発)。継続観測: 再催促 30 秒がうるさくないか、タイムアウト率が実際に下がるか。

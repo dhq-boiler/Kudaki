@@ -49,6 +49,19 @@ public sealed partial class PreferencesViewModel : ObservableObject
 
     [ObservableProperty] private bool _autoApplyEnabled;
 
+    // ---- MCP カテゴリ / 承認待ち通知 (v03-approval-attention t-settings-ui) ----
+    public string NotifyHeader => Strings.Preferences_Notify_Header;
+    public string NotifyHint => Strings.Preferences_Notify_Hint;
+    public string NotifySoundLabel => Strings.Preferences_Notify_Sound_Label;
+    public string NotifyFlashLabel => Strings.Preferences_Notify_Flash_Label;
+    public string NotifyRestoreLabel => Strings.Preferences_Notify_Restore_Label;
+    public string NotifyRepeatLabel => Strings.Preferences_Notify_Repeat_Label;
+
+    [ObservableProperty] private bool _notifySound;
+    [ObservableProperty] private bool _notifyFlashTaskbar;
+    [ObservableProperty] private bool _notifyRestoreIfMinimized;
+    [ObservableProperty] private int _notifyRepeatIntervalSeconds;
+
     public PreferencesViewModel(ILanguageService languageService, IAppSettingsStore settingsStore)
     {
         _languageService = languageService;
@@ -73,8 +86,13 @@ public sealed partial class PreferencesViewModel : ObservableObject
         }
         _selectedLanguageOption ??= LanguageOptions[0];
 
-        // 現在の AutoApplyPolicy を読み込み
-        _autoApplyEnabled = _settingsStore.Load().AutoApply.Enabled;
+        // 現在の AutoApplyPolicy / ApprovalNotification を読み込み
+        var settings = _settingsStore.Load();
+        _autoApplyEnabled = settings.AutoApply.Enabled;
+        _notifySound = settings.ApprovalNotification.Sound;
+        _notifyFlashTaskbar = settings.ApprovalNotification.FlashTaskbar;
+        _notifyRestoreIfMinimized = settings.ApprovalNotification.RestoreIfMinimized;
+        _notifyRepeatIntervalSeconds = settings.ApprovalNotification.RepeatIntervalSeconds;
     }
 
     [RelayCommand]
@@ -86,12 +104,23 @@ public sealed partial class PreferencesViewModel : ObservableObject
         {
             _languageService.Apply(SelectedLanguageOption.Value);
         }
-        // AutoApply 側は自分で settings.Load → 部分上書き → Save (LanguageService と同 pattern)。
-        // こちらも変更されたときだけ save する。
+        // AutoApply / ApprovalNotification は自分で settings.Load → 部分上書き → Save
+        // (LanguageService と同 pattern)。変更があったときだけ save する。
         var currentSettings = _settingsStore.Load();
-        if (currentSettings.AutoApply.Enabled != AutoApplyEnabled)
+        var notify = currentSettings.ApprovalNotification;
+        var dirty = currentSettings.AutoApply.Enabled != AutoApplyEnabled
+            || notify.Sound != NotifySound
+            || notify.FlashTaskbar != NotifyFlashTaskbar
+            || notify.RestoreIfMinimized != NotifyRestoreIfMinimized
+            || notify.RepeatIntervalSeconds != NotifyRepeatIntervalSeconds;
+        if (dirty)
         {
             currentSettings.AutoApply.Enabled = AutoApplyEnabled;
+            notify.Sound = NotifySound;
+            notify.FlashTaskbar = NotifyFlashTaskbar;
+            notify.RestoreIfMinimized = NotifyRestoreIfMinimized;
+            // 負値は「繰り返さない」に丸める (0 と同義、DispatcherTimer に負の Interval は渡せない)。
+            notify.RepeatIntervalSeconds = Math.Max(0, NotifyRepeatIntervalSeconds);
             _settingsStore.Save(currentSettings);
         }
 

@@ -199,4 +199,11 @@ public static class Strings
     public static string Preferences_Language_Label => Get("Preferences_Language_Label");
     public static string Preferences_Language_Hint => Get("Preferences_Language_Hint");
     public static string Preferences_Language_System => Get("Preferences_Language_System");
+    public static string TabHeader_PendingApprovalTooltip => Get("TabHeader_PendingApprovalTooltip");
+    public static string Preferences_Notify_Header => Get("Preferences_Notify_Header");
+    public static string Preferences_Notify_Hint => Get("Preferences_Notify_Hint");
+    public static string Preferences_Notify_Sound_Label => Get("Preferences_Notify_Sound_Label");
+    public static string Preferences_Notify_Flash_Label => Get("Preferences_Notify_Flash_Label");
+    public static string Preferences_Notify_Restore_Label => Get("Preferences_Notify_Restore_Label");
+    public static string Preferences_Notify_Repeat_Label => Get("Preferences_Notify_Repeat_Label");
 }

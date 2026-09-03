@@ -5,6 +5,12 @@ All notable changes to Kudaki are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-03
+
+### Added
+
+- **Approval notifications.** When an AI agent proposes changes, Kudaki now calls your attention instead of waiting silently until the proposal times out: it plays a system sound, flashes the taskbar button until the window comes to the front, marks the taskbar button as paused, restores the window if it was minimized, and shows an amber badge on the tab that is waiting. If you do not react, the sound and flash repeat on an interval. Kudaki never takes keyboard focus away from the application you are working in - a restored window comes back visible but unfocused. The new controls live under Preferences -> MCP: sound, taskbar flash, restore-if-minimized, and the repeat interval (0 disables repeating).
+
 ## [0.3.0] - 2026-09-02
 
 ### Added

@@ -25,6 +25,22 @@ public sealed class AppSettings
     // 即適用するかのユーザー設定。ユーザーが「上限」を決める、AI 側は緩められない
     // (Fable レビュー: AI が引数で auto-apply 要求するのは事故の元)。
     public AutoApplyPolicy AutoApply { get; set; } = new();
+
+    // v03-approval-attention t-settings-model: 承認待ちに気づかせるための通知設定。
+    // 既定は全部 on (気づかずに timeout する方が実害が大きいので opt-out 方式)。
+    public ApprovalNotificationSettings ApprovalNotification { get; set; } = new();
+}
+
+// v03-approval-attention: MCP の承認待ちが来たときの呼びかけ方。
+// フォアグラウンド奪取は設定項目に置かない (段階的エスカレーション方針として常に行わない)。
+public sealed class ApprovalNotificationSettings
+{
+    public bool Sound { get; set; } = true;
+    public bool FlashTaskbar { get; set; } = true;
+    public bool RestoreIfMinimized { get; set; } = true;
+
+    // 無反応時の再催促間隔。0 なら 1 回鳴らして終わり。
+    public int RepeatIntervalSeconds { get; set; } = 30;
 }
 
 // v03-mcp-auto-apply: 承認 UI をスキップする条件。Enabled=false ならすべて承認必須。

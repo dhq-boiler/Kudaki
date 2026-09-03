@@ -240,4 +240,11 @@
   <data name="Preferences_Language_Label" xml:space="preserve"><value>Display language</value></data>
   <data name="Preferences_Language_Hint" xml:space="preserve"><value>Language changes take effect for windows opened after Apply. Currently open windows keep their previous language.</value></data>
   <data name="Preferences_Language_System" xml:space="preserve"><value>Follow OS</value></data>
+  <data name="TabHeader_PendingApprovalTooltip" xml:space="preserve"><value>This tab is waiting for your approval</value></data>
+  <data name="Preferences_Notify_Header" xml:space="preserve"><value>Approval notifications</value></data>
+  <data name="Preferences_Notify_Hint" xml:space="preserve"><value>How Kudaki calls your attention when an AI agent proposes changes. Kudaki never steals keyboard focus from the app you are working in.</value></data>
+  <data name="Preferences_Notify_Sound_Label" xml:space="preserve"><value>Play a sound</value></data>
+  <data name="Preferences_Notify_Flash_Label" xml:space="preserve"><value>Flash the taskbar button</value></data>
+  <data name="Preferences_Notify_Restore_Label" xml:space="preserve"><value>Restore the window if minimized (without focusing it)</value></data>
+  <data name="Preferences_Notify_Repeat_Label" xml:space="preserve"><value>Repeat every (seconds, 0 = do not repeat)</value></data>
 </root>

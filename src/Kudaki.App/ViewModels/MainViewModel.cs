@@ -32,6 +32,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IPreferencesDialogService _preferencesDialog;
     private readonly IConfirmDialogService _confirm;
     private readonly IAppSettingsStore _settingsStore;
+    private readonly IApprovalNotificationService _approvalNotification;
 
     // 開いてるドキュメント一覧 (現状は常に 1 個)。t-tab-control で TabControl.ItemsSource に bind する。
     public ObservableCollection<DocumentViewModel> Documents { get; } = new();
@@ -52,13 +53,20 @@ public sealed partial class MainViewModel : ObservableObject
         IUpdatePromptService updatePrompt,
         IPreferencesDialogService preferencesDialog,
         IConfirmDialogService confirm,
-        IAppSettingsStore settingsStore)
+        IAppSettingsStore settingsStore,
+        IApprovalNotificationService approvalNotification)
     {
         _dialogs = dialogs;
         _updatePrompt = updatePrompt;
         _preferencesDialog = preferencesDialog;
         _confirm = confirm;
         _settingsStore = settingsStore;
+        _approvalNotification = approvalNotification;
+
+        // タブの増減に追従して承認待ち通知の購読を張り替える。
+        // Add/Remove の経路が複数ある (新規 / 開く / 復元 / 閉じる) ので、
+        // 各経路に散らさず CollectionChanged 1 箇所で面倒を見る。
+        Documents.CollectionChanged += OnDocumentsCollectionChanged;
 
         // 初期の空ドキュメントを開いた状態で起動する。
         var initial = new DocumentViewModel(dialogs);
@@ -278,6 +286,39 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         await target.LoadFromPathAsync(path).ConfigureAwait(true);
+    }
+
+    // ----- 承認待ち通知 (v03-approval-attention) -----
+
+    // doc ごとの HasPendingApproval 購読。タブを閉じたときに解除するため保持する。
+    private readonly Dictionary<DocumentViewModel, IDisposable> _approvalSubscriptions = new();
+
+    private void OnDocumentsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        foreach (var doc in e.OldItems?.OfType<DocumentViewModel>() ?? Enumerable.Empty<DocumentViewModel>())
+        {
+            doc.PendingApprovalArrived -= OnPendingApprovalArrived;
+            if (_approvalSubscriptions.Remove(doc, out var sub)) sub.Dispose();
+        }
+        foreach (var doc in e.NewItems?.OfType<DocumentViewModel>() ?? Enumerable.Empty<DocumentViewModel>())
+        {
+            doc.PendingApprovalArrived += OnPendingApprovalArrived;
+            _approvalSubscriptions[doc] = doc.HasPendingApproval.Subscribe(_ => RefreshApprovalNotification());
+        }
+        RefreshApprovalNotification();
+    }
+
+    private void OnPendingApprovalArrived(DocumentViewModel doc) => _approvalNotification.NotifyPendingArrived();
+
+    // どの doc にも承認待ちが無くなったら鳴り物を止める。
+    // 1 個でも残っていれば「まだ待っている」状態なので何もしない
+    // (再催促タイマーは通知サービス側が持っている)。
+    private void RefreshApprovalNotification()
+    {
+        if (!Documents.Any(d => d.HasPendingApproval.Value))
+        {
+            _approvalNotification.Clear();
+        }
     }
 
     // ArrowDiagramService を注入した新規 DocumentViewModel を生成する。

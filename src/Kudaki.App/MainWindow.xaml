@@ -333,6 +333,30 @@
             <TabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:DocumentViewModel}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- 承認待ちバッジ (v03-approval-attention t-tab-badge-ui)。
+                             非アクティブタブに提案が届いても Diff Overlay は出ないので、
+                             どのタブで待っているかをここで示す。1 秒周期の緩い明滅にして
+                             目に痛い高速点滅は避ける (タスクバー点滅で既に強く呼びかけている)。 -->
+                        <Ellipse Width="8" Height="8"
+                                 Margin="0,0,7,0"
+                                 VerticalAlignment="Center"
+                                 Fill="{DynamicResource WarningGlyphForeground}"
+                                 ToolTip="{x:Static loc:Strings.TabHeader_PendingApprovalTooltip}"
+                                 Visibility="{Binding HasPendingApproval.Value, Converter={StaticResource BoolToVis}}">
+                            <Ellipse.Triggers>
+                                <EventTrigger RoutedEvent="Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                             From="1.0" To="0.25"
+                                                             Duration="0:0:0.5"
+                                                             AutoReverse="True"
+                                                             RepeatBehavior="Forever"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Ellipse.Triggers>
+                        </Ellipse>
                         <!-- TabHeaderText = WindowTitle + dirty マーク (*) の computed -->
                         <TextBlock Text="{Binding TabHeaderText.Value}"
                                    VerticalAlignment="Center"/>

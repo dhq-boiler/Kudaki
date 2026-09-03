@@ -56,6 +56,18 @@ public sealed partial class DocumentViewModel : ObservableObject
     // 該当 doc を解決して doc.PendingService.SubmitAsync を呼ぶ。
     public Services.Mcp.PendingChangesService PendingService { get; } = new();
 
+    // v03-approval-attention t-doc-has-pending: このタブに承認待ちがあるか。
+    // TabControl.ItemTemplate のバッジと、MainViewModel の「全 doc 解決済み判定」に使う。
+    public BindableReactiveProperty<bool> HasPendingApproval { get; } = new(false);
+
+    // 新しい承認待ちがこの doc に届いた瞬間に 1 回だけ発火する。
+    // MainViewModel が購読して IApprovalNotificationService に鳴らしてもらう。
+    public event Action<DocumentViewModel>? PendingApprovalArrived;
+
+    // 既に通知した Set の Id。キューが A→B と連続したときに B でもちゃんと鳴らすため、
+    // 「null からの遷移」ではなく「先頭 Set の同一性」で新着を判定する。
+    private Guid? _notifiedPendingSetId;
+
     // TabHeader 表示用: WindowTitle + dirty マーク (*) の computed。
     // WindowTitle か IsDirty が変わったら再計算して push する。
     public BindableReactiveProperty<string> TabHeaderText { get; }
@@ -96,7 +108,19 @@ public sealed partial class DocumentViewModel : ObservableObject
                 dispatcher.BeginInvoke(new Action(UpdateCurrentPending));
                 return;
             }
-            CurrentPendingSet.Value = PendingService.Pending.Count > 0 ? PendingService.Pending[0] : null;
+            var next = PendingService.Pending.Count > 0 ? PendingService.Pending[0] : null;
+            CurrentPendingSet.Value = next;
+            HasPendingApproval.Value = next is not null;
+
+            if (next is null)
+            {
+                _notifiedPendingSetId = null;
+            }
+            else if (_notifiedPendingSetId != next.Id)
+            {
+                _notifiedPendingSetId = next.Id;
+                PendingApprovalArrived?.Invoke(this);
+            }
         }
     }
 

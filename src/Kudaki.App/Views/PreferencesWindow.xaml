@@ -71,6 +71,39 @@
                            FontSize="11"
                            Foreground="{DynamicResource ControlSubtleForeground}"
                            Margin="0,4,0,6"/>
+
+                <!-- 承認待ちの通知 (v03-approval-attention t-settings-ui) -->
+                <Separator Margin="0,10,0,10" Background="{DynamicResource SubtleDividerBrush}"/>
+                <TextBlock Text="{Binding DataContext.NotifyHeader, RelativeSource={RelativeSource AncestorType=Window}}"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ControlDefaultForeground}"
+                           Margin="0,0,0,2"/>
+                <TextBlock Text="{Binding DataContext.NotifyHint, RelativeSource={RelativeSource AncestorType=Window}}"
+                           TextWrapping="Wrap"
+                           FontSize="11"
+                           Foreground="{DynamicResource ControlSubtleForeground}"
+                           Margin="0,0,0,8"/>
+                <CheckBox Content="{Binding DataContext.NotifySoundLabel, RelativeSource={RelativeSource AncestorType=Window}}"
+                          IsChecked="{Binding DataContext.NotifySound, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          Margin="0,0,0,6"/>
+                <CheckBox Content="{Binding DataContext.NotifyFlashLabel, RelativeSource={RelativeSource AncestorType=Window}}"
+                          IsChecked="{Binding DataContext.NotifyFlashTaskbar, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          Margin="0,0,0,6"/>
+                <CheckBox Content="{Binding DataContext.NotifyRestoreLabel, RelativeSource={RelativeSource AncestorType=Window}}"
+                          IsChecked="{Binding DataContext.NotifyRestoreIfMinimized, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                          Foreground="{DynamicResource ControlDefaultForeground}"
+                          Margin="0,0,0,10"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding DataContext.NotifyRepeatLabel, RelativeSource={RelativeSource AncestorType=Window}}"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource ControlDefaultForeground}"
+                               Margin="0,0,8,0"/>
+                    <TextBox Text="{Binding DataContext.NotifyRepeatIntervalSeconds, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Width="56"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
         </DataTemplate>
 

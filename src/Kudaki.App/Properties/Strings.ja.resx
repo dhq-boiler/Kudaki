@@ -220,4 +220,11 @@
   <data name="Preferences_Language_Label" xml:space="preserve"><value>表示言語</value></data>
   <data name="Preferences_Language_Hint" xml:space="preserve"><value>言語の変更は、適用以降に開くウィンドウから反映されます。開いているウィンドウの表示は元のまま残ります。</value></data>
   <data name="Preferences_Language_System" xml:space="preserve"><value>OS に従う</value></data>
+  <data name="TabHeader_PendingApprovalTooltip" xml:space="preserve"><value>このタブで承認待ちです</value></data>
+  <data name="Preferences_Notify_Header" xml:space="preserve"><value>承認待ちの通知</value></data>
+  <data name="Preferences_Notify_Hint" xml:space="preserve"><value>AI エージェントから変更提案が届いたときの知らせ方です。作業中のアプリからキーボードフォーカスを奪うことはありません。</value></data>
+  <data name="Preferences_Notify_Sound_Label" xml:space="preserve"><value>音を鳴らす</value></data>
+  <data name="Preferences_Notify_Flash_Label" xml:space="preserve"><value>タスクバーのボタンを点滅させる</value></data>
+  <data name="Preferences_Notify_Restore_Label" xml:space="preserve"><value>最小化中ならウィンドウを復元する (フォーカスは移さない)</value></data>
+  <data name="Preferences_Notify_Repeat_Label" xml:space="preserve"><value>反応がないとき繰り返す間隔 (秒、0 で繰り返さない)</value></data>
 </root>

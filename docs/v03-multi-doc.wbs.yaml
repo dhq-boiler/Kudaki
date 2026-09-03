@@ -1,7 +1,7 @@
 version: 2
 title: Kudaki v0.3 (multi-doc) — シングルトン + マルチドキュメント
 createdAt: 2026-09-02T00:00:00.0000000Z
-modifiedAt: 2026-09-02T04:23:00.0698086Z
+modifiedAt: 2026-09-03T07:00:21.3870233Z
 tasks:
 - id: sec-background
   title: 背景・方針
