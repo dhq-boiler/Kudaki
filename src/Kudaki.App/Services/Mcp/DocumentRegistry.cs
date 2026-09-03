@@ -47,7 +47,11 @@ public sealed class DocumentRegistry
                 Title: d.WindowTitle.Value,
                 IsActive: ReferenceEquals(d, active),
                 IsDirty: d.IsDirty.Value,
-                Revision: d.GetRevision()))
+                Revision: d.GetRevision(),
+                // 「AI 待機中」= この doc に対して未完了の wait_for_request が 1 本以上ある状態。
+                // これ以外に接続状態の真実を知る手段は stateless transport には無い。
+                AgentWaiting: d.AgentRequests.WaiterCount.Value > 0,
+                PendingRequests: d.AgentRequests.Queue.Count))
             .ToList();
     }
 
@@ -75,4 +79,12 @@ public sealed class DocumentRegistry
     private static string NormalizeId(string path) => Path.GetFullPath(path);
 }
 
-public sealed record DocumentInfo(string DocumentId, string FilePath, string Title, bool IsActive, bool IsDirty, string Revision);
+public sealed record DocumentInfo(
+    string DocumentId,
+    string FilePath,
+    string Title,
+    bool IsActive,
+    bool IsDirty,
+    string Revision,
+    bool AgentWaiting,
+    int PendingRequests);

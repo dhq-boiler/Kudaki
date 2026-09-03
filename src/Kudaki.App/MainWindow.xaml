@@ -399,6 +399,19 @@
                         <KeyBinding Key="Enter" Command="{Binding AddSiblingToSelectedCommand}"/>
                         <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding AddChildToSelectedCommand}"/>
                         <KeyBinding Key="F2" Command="{Binding BeginEditSelectedTitleCommand}"/>
+                        <!-- Ctrl+1-9: 選択タスクを兄弟内の N 番目へ移動 (MoveUp/Down の random access 版)。
+                             裸の数字キーは置かない。編集中 TextBox にフォーカスがあっても
+                             TreeView.InputBindings は評価されるので、KeyDown が Handled になると
+                             TextInput が生成されずタイトルに数字が打てなくなる。 -->
+                        <KeyBinding Key="D1" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="1"/>
+                        <KeyBinding Key="D2" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="2"/>
+                        <KeyBinding Key="D3" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="3"/>
+                        <KeyBinding Key="D4" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="4"/>
+                        <KeyBinding Key="D5" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="5"/>
+                        <KeyBinding Key="D6" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="6"/>
+                        <KeyBinding Key="D7" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="7"/>
+                        <KeyBinding Key="D8" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="8"/>
+                        <KeyBinding Key="D9" Modifiers="Ctrl" Command="{Binding MoveSelectedToPositionCommand}" CommandParameter="9"/>
                         <KeyBinding Key="Delete" Command="{Binding DeleteSelectedCommand}"/>
                         <KeyBinding Key="Tab" Command="{Binding IndentSelectedCommand}"/>
                         <KeyBinding Key="Tab" Modifiers="Shift" Command="{Binding OutdentSelectedCommand}"/>
@@ -415,12 +428,65 @@
                                  Tag は MainViewModel を掴んで ContextMenu 内から届くように。 -->
                             <Grid HorizontalAlignment="Stretch"
                                   MouseLeftButtonDown="TreeItemRow_MouseLeftButtonDown"
-                                  Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                  Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TreeView}}">
                                 <Grid.ContextMenu>
                                     <ContextMenu>
                                         <!-- 葉タスクだと意味がないので Disabled。判定は Binding + PlacementTarget 経由。 -->
                                         <MenuItem Header="{x:Static loc:Strings.Tree_ContextMenu_ShowArrowDiagram}"
                                                   Command="{Binding PlacementTarget.Tag.ShowArrowDiagramCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                            <MenuItem.Style>
+                                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PlacementTarget.DataContext.IsLeaf, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="True">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </MenuItem.Style>
+                                        </MenuItem>
+
+                                        <Separator/>
+
+                                        <!-- AI への分解依頼 (v0.6)。未保存 doc は AI から解決できないので無効化し、
+                                             ToolTip で理由 / まだ AI が待機していないことを伝える。 -->
+                                        <MenuItem Header="{x:Static loc:Strings.Tree_ContextMenu_RequestBreakdown}"
+                                                  Command="{Binding PlacementTarget.Tag.RequestBreakdownCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                            <MenuItem.Style>
+                                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PlacementTarget.Tag.HasFilePath.Value, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="False">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                            <Setter Property="ToolTip" Value="{x:Static loc:Strings.Tree_ContextMenu_RequestBreakdown_NeedsSave}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding PlacementTarget.Tag.IsAgentWaiting.Value, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="False">
+                                                            <Setter Property="ToolTip" Value="{x:Static loc:Strings.Tree_ContextMenu_RequestBreakdown_NoAgent}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </MenuItem.Style>
+                                        </MenuItem>
+
+                                        <!-- 積まれたまま配送されていない依頼の取り消し。件数 0 なら無効。 -->
+                                        <MenuItem Header="{x:Static loc:Strings.Tree_ContextMenu_CancelAgentRequests}"
+                                                  Command="{Binding PlacementTarget.Tag.CancelPendingAgentRequestsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                            <MenuItem.Style>
+                                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PlacementTarget.Tag.PendingAgentRequestCount.Value, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="0">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </MenuItem.Style>
+                                        </MenuItem>
+
+                                        <Separator/>
+
+                                        <!-- 今の子の並び順を FS 依存チェーンに変換する。葉タスクでは意味がないので無効。 -->
+                                        <MenuItem Header="{x:Static loc:Strings.Tree_ContextMenu_SerializeChildren}"
+                                                  Command="{Binding PlacementTarget.Tag.SerializeChildrenCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                             <MenuItem.Style>
                                                 <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">

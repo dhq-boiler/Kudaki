@@ -56,6 +56,22 @@ public sealed partial class DocumentViewModel : ObservableObject
     // 該当 doc を解決して doc.PendingService.SubmitAsync を呼ぶ。
     public Services.Mcp.PendingChangesService PendingService { get; } = new();
 
+    // per-doc の「ユーザー → AI」依頼チャネル (タスクの分解依頼など)。
+    // MCP tool の wait_for_request がここでブロックして依頼を待つ。
+    public Services.Mcp.AgentRequestService AgentRequests { get; } = new();
+
+    // この doc に対して AI が wait_for_request でブロックしているか。
+    // 右クリックメニューの活性と、タブの「AI 待機中」表示に使う。
+    public BindableReactiveProperty<bool> IsAgentWaiting { get; } = new(false);
+
+    // 保存先パスを持っているか。internal な HasCurrentFilePath は XAML から bind できず
+    // 変更通知も無いので、UI 用にはこの観測プロパティを使う (右クリックメニューの活性判定)。
+    public BindableReactiveProperty<bool> HasFilePath { get; } = new(false);
+
+    // 積まれたまま配送されていない依頼の件数。ContextMenu の活性判定用。
+    // ReadOnlyObservableCollection.Count は変更通知を出さないのでここに写す。
+    public BindableReactiveProperty<int> PendingAgentRequestCount { get; } = new(0);
+
     // v03-approval-attention t-doc-has-pending: このタブに承認待ちがあるか。
     // TabControl.ItemTemplate のバッジと、MainViewModel の「全 doc 解決済み判定」に使う。
     public BindableReactiveProperty<bool> HasPendingApproval { get; } = new(false);
@@ -84,6 +100,13 @@ public sealed partial class DocumentViewModel : ObservableObject
             RecomputeSelectablePredecessors();
         });
         WireOwnPendingQueue();
+
+        // ウェイター数 0/1 以上を bool に落として UI に晒す。
+        AgentRequests.WaiterCount.Subscribe(n => IsAgentWaiting.Value = n > 0);
+
+        // 依頼キューの件数を観測プロパティに写す (コレクションの Count は通知を出さないため)。
+        ((System.Collections.Specialized.INotifyCollectionChanged)AgentRequests.Queue)
+            .CollectionChanged += (_, _) => PendingAgentRequestCount.Value = AgentRequests.Queue.Count;
 
         // WindowTitle と IsDirty のどちらかが動いたら TabHeaderText を更新。
         // CombineLatest は R3 の Observable 拡張。両方の最新値をペアで流す。
@@ -342,6 +365,7 @@ public sealed partial class DocumentViewModel : ObservableObject
     internal void SetCurrentFilePath(string? path)
     {
         _currentFilePath = path;
+        HasFilePath.Value = path is not null;
         WindowTitle.Value = path is null
             ? Strings.Main_Title_Untitled
             : string.Format(Strings.Main_Title_Format, Path.GetFileName(path));
@@ -556,6 +580,178 @@ public sealed partial class DocumentViewModel : ObservableObject
                 yield return vm;
             }
         }
+    }
+
+    // ----- AI への依頼 (v0.6 タスクの分解依頼) -----
+
+    // ツリー行の右クリック →「AI にタスクの分解を依頼」。
+    // 依頼は AgentRequests に積まれ、待機中の AI があれば即配送される。
+    [RelayCommand]
+    private void RequestBreakdown(TaskNodeViewModel? task)
+    {
+        task ??= SelectedTask.Value;
+        if (task is null) return;
+
+        // 未保存 doc は DocumentRegistry.ListDocuments から除外されるので AI から解決できない。
+        // メニュー側でも無効化しているが、コマンド側でも黙って弾かず理由を出す。
+        if (_currentFilePath is null)
+        {
+            StatusMessage.Value = Strings.Status_AgentRequest_NeedsSave;
+            return;
+        }
+
+        AgentRequests.Enqueue(new Services.Mcp.AgentRequest
+        {
+            Kind = Services.Mcp.AgentRequestKind.Breakdown,
+            DocumentId = System.IO.Path.GetFullPath(_currentFilePath),
+            TaskId = task.Id,
+            TaskTitle = task.Title,
+            AncestorTitles = CollectAncestorTitles(task),
+            // 子に配分してもらうために現在値を渡す。これが無いと着手済みタスクを
+            // 砕いた瞬間に進捗が 0% に戻る (親の値は子があると無視されるため)。
+            EstimateHours = task.EstimateHours,
+            RemainingHours = task.RemainingHours,
+            Notes = task.Notes,
+        });
+
+        StatusMessage.Value = IsAgentWaiting.Value
+            ? string.Format(Strings.Status_AgentRequest_Delivered_Format, task.Title)
+            : string.Format(Strings.Status_AgentRequest_Queued_Format, task.Title);
+    }
+
+    // まだ配送されていない依頼を全部取り消す。
+    [RelayCommand]
+    private void CancelPendingAgentRequests()
+    {
+        var count = AgentRequests.CancelAllQueued();
+        if (count > 0)
+        {
+            StatusMessage.Value = string.Format(Strings.Status_AgentRequest_Cancelled_Format, count);
+        }
+    }
+
+    // ルート直下から当該タスクの親までのタイトル列 (AI に文脈を伝えるため)。
+    private static IReadOnlyList<string> CollectAncestorTitles(TaskNodeViewModel task)
+    {
+        var titles = new List<string>();
+        // Parent.Parent == null は仮想ルートなので祖先として数えない。
+        for (var p = task.Parent; p is not null && p.Parent is not null; p = p.Parent)
+        {
+            titles.Add(p.Title);
+        }
+        titles.Reverse();
+        return titles;
+    }
+
+    // ----- 実行順序 (v0.6) -----
+
+    // 未完了の葉タスクを「依存を満たす順」に並べて返す。
+    // MCP の get_next_tasks が読む、AI 向けの実行順序。
+    //
+    // 順序の出どころは 2 つだけで、どちらも既存の真実:
+    //   1. 先行タスク依存 (PredecessorIds) — 満たされていないものは後ろに回る
+    //   2. ツリーの並び順 — 依存で決まらない部分の tie-break
+    // 「順序番号」フィールドは作らない。3 つ目の真実を増やすと食い違ったとき直せなくなる
+    // (Fable レビュー 2026-09-03)。ユーザーは並べ替えと依存編集で順序を動かす。
+    public IReadOnlyList<TaskNodeViewModel> GetExecutionOrder()
+    {
+        // ツリー順の葉タスクのうち、まだ残時間があるものだけが対象。
+        var pending = DependencyValidator.EnumerateTasks(_rootVm)
+            .Where(t => t.IsLeaf && t.RolledUpRemainingHours > 0.0)
+            .ToList();
+
+        var index = new Dictionary<TaskNodeViewModel, int>();
+        for (var i = 0; i < pending.Count; i++) index[pending[i]] = i;
+
+        // Kahn 法。同時に着手可能なものはツリー順で若い方を先に出す。
+        var ordered = new List<TaskNodeViewModel>(pending.Count);
+        var emitted = new HashSet<TaskNodeViewModel>();
+        var remaining = new List<TaskNodeViewModel>(pending);
+
+        while (remaining.Count > 0)
+        {
+            // 未完了の先行タスクが残っていないものが着手可能。
+            // 完了済み・対象外の先行タスクは既に条件を満たしているので無視してよい。
+            var ready = remaining
+                .Where(t => t.Predecessors.All(p => !index.ContainsKey(p) || emitted.Contains(p)))
+                .OrderBy(t => index[t])
+                .ToList();
+
+            if (ready.Count == 0)
+            {
+                // 循環が残っている場合の保険。DependencyValidator が防いでいるはずだが、
+                // ここで無限ループにするより、残りをツリー順で吐いて打ち切る方が安全。
+                ordered.AddRange(remaining.OrderBy(t => index[t]));
+                break;
+            }
+
+            foreach (var t in ready)
+            {
+                ordered.Add(t);
+                emitted.Add(t);
+            }
+            remaining.RemoveAll(emitted.Contains);
+        }
+
+        return ordered;
+    }
+
+
+    // Ctrl+1〜9: 選択タスクを兄弟内の N 番目 (1-indexed) に移動する。
+    // MoveUp/MoveDown の random access 版。9 個までしか届かないのは仕様。
+    [RelayCommand]
+    private void MoveSelectedToPosition(string? position)
+    {
+        var task = SelectedTask.Value;
+        if (task is null || task.Parent is null) return;
+
+        // タイトル編集中は数字がテキスト入力なので何もしない (VM 側で完結させる)。
+        if (task.IsEditing.Value) return;
+
+        if (!int.TryParse(position, out var oneBased)) return;
+        var siblings = task.Parent.Children;
+        var from = siblings.IndexOf(task);
+        if (from < 0) return;
+
+        var to = Math.Clamp(oneBased - 1, 0, siblings.Count - 1);
+        if (from == to) return;
+        siblings.Move(from, to);
+    }
+
+    // 親の右クリック →「子タスクを並び順で直列化」。
+    // 今の兄弟の並びをそのまま FS 依存チェーン (子 i-1 → 子 i) に変換する。
+    // 番号を振るより速く、依存関係が唯一の真実のまま残る (Fable レビュー)。
+    [RelayCommand]
+    private void SerializeChildren(TaskNodeViewModel? parent)
+    {
+        parent ??= SelectedTask.Value;
+        if (parent is null || parent.IsLeaf) return;
+
+        var children = parent.Children;
+        var added = 0;
+        var skipped = 0;
+        for (var i = 1; i < children.Count; i++)
+        {
+            var target = children[i];
+            var predecessor = children[i - 1];
+            if (target.Predecessors.Contains(predecessor)) continue;
+
+            // 循環や自己参照は DependencyValidator に判断させる。
+            // 既に別の依存が張られていて矛盾する場合はそのタスクだけ飛ばす。
+            var result = DependencyValidator.CanAddPredecessor(target, predecessor);
+            if (!result.IsValid)
+            {
+                skipped++;
+                continue;
+            }
+            target.Predecessors.Add(predecessor);
+            added++;
+        }
+
+        StatusMessage.Value = skipped > 0
+            ? string.Format(Strings.Status_Serialized_PartialFormat, added, skipped)
+            : string.Format(Strings.Status_Serialized_Format, added);
+        RecomputeSelectablePredecessors();
     }
 
     [RelayCommand]

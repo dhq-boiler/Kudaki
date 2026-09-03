@@ -440,6 +440,35 @@
         </Setter>
     </Style>
 
+    <!-- ContextMenu (右クリックメニュー) 本体。
+         2026-09-03 発覚: これが無いと ContextMenu だけ WPF 既定の明るい Popup のままで、
+         MenuItem の Foreground (ControlDefaultForeground = #EBEBEB) が明るい背景に乗り、
+         「有効な項目ほど読めない」状態になっていた (無効項目の #8E8E8E の方が読める逆転)。
+         Menu バーのドロップダウンは SubmenuMenuItemTemplate 側で暗く塗っているので影響が無く、
+         右クリックメニューの項目が 1 個 (しかも常時無効) だったため今まで露見していなかった。 -->
+    <Style TargetType="{x:Type ContextMenu}">
+        <Setter Property="Background" Value="{DynamicResource ContainerBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlDefaultBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlDefaultForeground}"/>
+        <Setter Property="Padding" Value="0,4"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ContextMenu}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="3"
+                            SnapsToDevicePixels="True">
+                        <ItemsPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Menu 内の Separator -->
     <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}">
         <Setter Property="Background" Value="{DynamicResource ControlDefaultBorderBrush}"/>

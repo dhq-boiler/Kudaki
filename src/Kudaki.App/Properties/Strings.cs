@@ -218,4 +218,16 @@ public static class Strings
     public static string About_Repository_Url => Get("About_Repository_Url");
     public static string About_OssHeader => Get("About_OssHeader");
     public static string About_OssIntro => Get("About_OssIntro");
+    public static string Status_AgentRequest_NeedsSave => Get("Status_AgentRequest_NeedsSave");
+    public static string Status_AgentRequest_Delivered_Format => Get("Status_AgentRequest_Delivered_Format");
+    public static string Status_AgentRequest_Queued_Format => Get("Status_AgentRequest_Queued_Format");
+    public static string Status_AgentRequest_Cancelled_Format => Get("Status_AgentRequest_Cancelled_Format");
+    public static string Status_Serialized_Format => Get("Status_Serialized_Format");
+    public static string Status_Serialized_PartialFormat => Get("Status_Serialized_PartialFormat");
+    public static string Tree_ContextMenu_RequestBreakdown => Get("Tree_ContextMenu_RequestBreakdown");
+    public static string Tree_ContextMenu_CancelAgentRequests => Get("Tree_ContextMenu_CancelAgentRequests");
+    public static string Tree_ContextMenu_SerializeChildren => Get("Tree_ContextMenu_SerializeChildren");
+    public static string Tree_ContextMenu_RequestBreakdown_NeedsSave => Get("Tree_ContextMenu_RequestBreakdown_NeedsSave");
+    public static string Tree_ContextMenu_RequestBreakdown_NoAgent => Get("Tree_ContextMenu_RequestBreakdown_NoAgent");
+    public static string TabHeader_AgentWaitingTooltip => Get("TabHeader_AgentWaitingTooltip");
 }

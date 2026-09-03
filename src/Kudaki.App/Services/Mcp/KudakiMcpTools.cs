@@ -27,12 +27,14 @@ public static class KudakiMcpTools
     [McpServerTool(Name = "list_documents")]
     [Description(
         "List all WBS documents currently open in Kudaki. Returns a JSON array of " +
-        "{documentId, filePath, title, isActive, isDirty, revision}. `documentId` is the absolute file path " +
+        "{documentId, filePath, title, isActive, isDirty, revision, agentWaiting, pendingRequests}. " +
+        "`documentId` is the absolute file path " +
         "and is the required key for get_document and propose_changes. `revision` is a short hash of the " +
         "current document state; pass it to propose_changes as `expectedRevision` to reject stale proposals " +
         "that would overwrite concurrent user or AI edits. Unsaved (untitled) documents are NOT listed — " +
         "they cannot be addressed by MCP tools until saved. Call this FIRST before get_document / " +
-        "propose_changes to pick the correct target and revision.")]
+        "propose_changes to pick the correct target and revision. `pendingRequests` is the number of " +
+        "user requests waiting for an agent on that document — call wait_for_request to pick them up.")]
     public static string ListDocuments()
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
@@ -52,7 +54,9 @@ public static class KudakiMcpTools
             sb.Append("\"title\":").Append(JsonString(d.Title)).Append(',');
             sb.Append("\"isActive\":").Append(d.IsActive ? "true" : "false").Append(',');
             sb.Append("\"isDirty\":").Append(d.IsDirty ? "true" : "false").Append(',');
-            sb.Append("\"revision\":").Append(JsonString(d.Revision));
+            sb.Append("\"revision\":").Append(JsonString(d.Revision)).Append(',');
+            sb.Append("\"agentWaiting\":").Append(d.AgentWaiting ? "true" : "false").Append(',');
+            sb.Append("\"pendingRequests\":").Append(d.PendingRequests);
             sb.Append('}');
         }
         sb.Append(']');
@@ -107,7 +111,10 @@ public static class KudakiMcpTools
                      "`result:revision_mismatch` WITHOUT showing UI, to prevent overwriting concurrent edits " +
                      "made after your last snapshot. Recommended workflow: list_documents (get revision) → " +
                      "get_document → build proposal → propose_changes with expectedRevision.")]
-        string? expectedRevision = null)
+        string? expectedRevision = null,
+        // SDK がツールメソッドに注入する。クライアント切断 (Claude Code の Ctrl+C 等) で
+        // 承認待ちを解放するために必要。渡さないと待機が残り続ける。
+        System.Threading.CancellationToken ct = default)
     {
         var doc = DocumentRegistry.Instance.Resolve(documentId);
         if (doc is null)
@@ -172,7 +179,7 @@ public static class KudakiMcpTools
         }
 
         var timeout = timeoutSeconds > 0 ? TimeSpan.FromSeconds(timeoutSeconds) : (TimeSpan?)null;
-        var result = await doc.PendingService.SubmitAsync(set, timeout).ConfigureAwait(false);
+        var result = await doc.PendingService.SubmitAsync(set, timeout, ct).ConfigureAwait(false);
 
         if (result == ApprovalResult.Approved)
         {
@@ -201,6 +208,132 @@ public static class KudakiMcpTools
             _ => "{\"result\":\"unknown\"}",
         };
     }
+
+    [McpServerTool(Name = "get_next_tasks")]
+    [Description(
+        "Return the document's unfinished leaf tasks in the order they should be worked on. " +
+        "Use this to decide what to do next instead of picking tasks yourself — the user controls this " +
+        "order from Kudaki by reordering the tree and editing dependencies, so it reflects what they " +
+        "actually want done first, and it changes as they rearrange things. Re-read it before starting " +
+        "each task rather than caching a plan. " +
+        "The order comes from the predecessor dependencies (a task never appears before a predecessor that " +
+        "is still unfinished) with the tree order breaking ties. Tasks whose remaining hours have reached " +
+        "zero are treated as done and left out. Returns a JSON array of " +
+        "{taskId, title, ancestorTitles, estimateHours, remainingHours, blockedBy}, where `blockedBy` lists " +
+        "the unfinished predecessors that still gate the task.")]
+    public static string GetNextTasks(
+        [Description("Absolute file path of the target document (from list_documents). Required.")]
+        string documentId,
+        [Description("Maximum number of tasks to return (default 20).")]
+        int limit = 20)
+    {
+        var doc = DocumentRegistry.Instance.Resolve(documentId);
+        if (doc is null)
+        {
+            return $"{{\"result\":\"unknown_document\",\"message\":{JsonString($"No open document matches '{documentId}'. Call list_documents first.")}}}";
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        var ordered = dispatcher is null || dispatcher.CheckAccess()
+            ? doc.GetExecutionOrder()
+            : dispatcher.Invoke(() => doc.GetExecutionOrder());
+
+        if (limit < 1) limit = 1;
+        var sb = new StringBuilder();
+        sb.Append('[');
+        var count = 0;
+        foreach (var task in ordered)
+        {
+            if (count >= limit) break;
+            if (count > 0) sb.Append(',');
+            count++;
+
+            sb.Append('{');
+            sb.Append("\"taskId\":").Append(JsonString(task.Id)).Append(',');
+            sb.Append("\"title\":").Append(JsonString(task.Title)).Append(',');
+            sb.Append("\"ancestorTitles\":[");
+            var ancestors = new System.Collections.Generic.List<string>();
+            for (var p = task.Parent; p is not null && p.Parent is not null; p = p.Parent) ancestors.Add(p.Title);
+            ancestors.Reverse();
+            for (var i = 0; i < ancestors.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append(JsonString(ancestors[i]));
+            }
+            sb.Append("],");
+            sb.Append("\"estimateHours\":").Append(NullableNumber(task.EstimateHours)).Append(',');
+            sb.Append("\"remainingHours\":").Append(NullableNumber(task.RemainingHours)).Append(',');
+            sb.Append("\"blockedBy\":[");
+            var first = true;
+            foreach (var pred in task.Predecessors)
+            {
+                if (pred.RolledUpRemainingHours <= 0.0) continue;
+                if (!first) sb.Append(',');
+                first = false;
+                sb.Append(JsonString(pred.Title));
+            }
+            sb.Append(']');
+            sb.Append('}');
+        }
+        sb.Append(']');
+        return sb.ToString();
+    }
+
+    [McpServerTool(Name = "wait_for_request")]
+    [Description(
+        "Wait for the user to send you a request from Kudaki's UI, then return it. This is how Kudaki asks " +
+        "YOU to do something: the user right-clicks a task and picks an action, and this call returns it. " +
+        "Kudaki's MCP transport is stateless, so it cannot push to you — you have to be waiting here. " +
+        "The call BLOCKS until a request arrives or `timeoutSeconds` elapses, so only call it when the user " +
+        "has asked you to stand by for Kudaki requests; your session cannot do anything else while it waits. " +
+        "Returns {result:'request', id, kind, documentId, taskId, taskTitle, ancestorTitles, estimateHours, " +
+        "remainingHours, notes} or {result:'timeout'}. Requests issued while nobody is waiting are queued, " +
+        "so a request is never lost — check `pendingRequests` in list_documents and call this to drain them. " +
+        "kind 'breakdown' means: split that task into concrete child tasks and send them with propose_changes. " +
+        "When splitting, distribute the parent's estimateHours and remainingHours across the new children — " +
+        "Kudaki ignores a parent's own hours once it has children, so skipping this resets the task's progress. " +
+        "To keep standing by, call this again after handling each request.")]
+    public static async Task<string> WaitForRequest(
+        [Description("Absolute file path of the document to watch (from list_documents). Required.")]
+        string documentId,
+        [Description("How long to block before giving up, in seconds (default 300 = 5 minutes). " +
+                     "On timeout call again to keep waiting.")]
+        int timeoutSeconds = 300,
+        System.Threading.CancellationToken ct = default)
+    {
+        var doc = DocumentRegistry.Instance.Resolve(documentId);
+        if (doc is null)
+        {
+            return $"{{\"result\":\"unknown_document\",\"message\":{JsonString($"No open document matches '{documentId}'. Call list_documents first.")}}}";
+        }
+
+        var timeout = timeoutSeconds > 0 ? TimeSpan.FromSeconds(timeoutSeconds) : TimeSpan.FromMinutes(5);
+        var request = await doc.AgentRequests.WaitAsync(timeout, ct).ConfigureAwait(false);
+        if (request is null) return "{\"result\":\"timeout\"}";
+
+        var sb = new StringBuilder();
+        sb.Append("{\"result\":\"request\",");
+        sb.Append("\"id\":").Append(JsonString(request.Id.ToString())).Append(',');
+        sb.Append("\"kind\":").Append(JsonString(request.Kind.ToString().ToLowerInvariant())).Append(',');
+        sb.Append("\"documentId\":").Append(JsonString(request.DocumentId)).Append(',');
+        sb.Append("\"taskId\":").Append(JsonString(request.TaskId)).Append(',');
+        sb.Append("\"taskTitle\":").Append(JsonString(request.TaskTitle)).Append(',');
+        sb.Append("\"ancestorTitles\":[");
+        for (var i = 0; i < request.AncestorTitles.Count; i++)
+        {
+            if (i > 0) sb.Append(',');
+            sb.Append(JsonString(request.AncestorTitles[i]));
+        }
+        sb.Append("],");
+        sb.Append("\"estimateHours\":").Append(NullableNumber(request.EstimateHours)).Append(',');
+        sb.Append("\"remainingHours\":").Append(NullableNumber(request.RemainingHours)).Append(',');
+        sb.Append("\"notes\":").Append(request.Notes is null ? "null" : JsonString(request.Notes));
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    private static string NullableNumber(double? value) =>
+        value is null ? "null" : value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private static string Json(string result, string message)
     {

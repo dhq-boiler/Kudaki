@@ -259,4 +259,16 @@
   <data name="About_Repository_Url" xml:space="preserve"><value>https://github.com/dhq-boiler/Kudaki</value></data>
   <data name="About_OssHeader" xml:space="preserve"><value>Open source components</value></data>
   <data name="About_OssIntro" xml:space="preserve"><value>Kudaki is built on the following open source software. Thanks to their authors and maintainers.</value></data>
+  <data name="Status_AgentRequest_NeedsSave" xml:space="preserve"><value>Save this document first — AI agents can only see saved files.</value></data>
+  <data name="Status_AgentRequest_Delivered_Format" xml:space="preserve"><value>Asked the waiting agent to break down: {0}</value></data>
+  <data name="Status_AgentRequest_Queued_Format" xml:space="preserve"><value>Queued a breakdown request for: {0} (no agent is waiting yet)</value></data>
+  <data name="Status_AgentRequest_Cancelled_Format" xml:space="preserve"><value>Cancelled {0} pending request(s).</value></data>
+  <data name="Status_Serialized_Format" xml:space="preserve"><value>Linked {0} dependency/dependencies in list order.</value></data>
+  <data name="Status_Serialized_PartialFormat" xml:space="preserve"><value>Linked {0} dependency/dependencies in list order, skipped {1}.</value></data>
+  <data name="Tree_ContextMenu_RequestBreakdown" xml:space="preserve"><value>Ask AI to break down this task</value></data>
+  <data name="Tree_ContextMenu_CancelAgentRequests" xml:space="preserve"><value>Cancel pending AI requests</value></data>
+  <data name="Tree_ContextMenu_SerializeChildren" xml:space="preserve"><value>Link children in list order</value></data>
+  <data name="Tree_ContextMenu_RequestBreakdown_NeedsSave" xml:space="preserve"><value>Save the document first — AI agents can only see saved files.</value></data>
+  <data name="Tree_ContextMenu_RequestBreakdown_NoAgent" xml:space="preserve"><value>No agent is standing by. The request will be queued until one calls wait_for_request.</value></data>
+  <data name="TabHeader_AgentWaitingTooltip" xml:space="preserve"><value>An AI agent is standing by for requests on this tab</value></data>
 </root>

@@ -239,4 +239,16 @@
   <data name="About_Repository_Url" xml:space="preserve"><value>https://github.com/dhq-boiler/Kudaki</value></data>
   <data name="About_OssHeader" xml:space="preserve"><value>オープンソースコンポーネント</value></data>
   <data name="About_OssIntro" xml:space="preserve"><value>Kudaki は以下のオープンソースソフトウェアを利用しています。作者・メンテナの皆さんに感謝します。</value></data>
+  <data name="Status_AgentRequest_NeedsSave" xml:space="preserve"><value>先にドキュメントを保存してほしいっす。AI からは保存済みファイルしか見えないっす。</value></data>
+  <data name="Status_AgentRequest_Delivered_Format" xml:space="preserve"><value>待機中の AI に分解を依頼しました: {0}</value></data>
+  <data name="Status_AgentRequest_Queued_Format" xml:space="preserve"><value>分解の依頼を積みました: {0} (まだ AI は待機していません)</value></data>
+  <data name="Status_AgentRequest_Cancelled_Format" xml:space="preserve"><value>保留中の依頼を {0} 件取り消しました。</value></data>
+  <data name="Status_Serialized_Format" xml:space="preserve"><value>並び順で依存を {0} 件つなぎました。</value></data>
+  <data name="Status_Serialized_PartialFormat" xml:space="preserve"><value>並び順で依存を {0} 件つなぎました ({1} 件スキップ)。</value></data>
+  <data name="Tree_ContextMenu_RequestBreakdown" xml:space="preserve"><value>AI にタスクの分解を依頼</value></data>
+  <data name="Tree_ContextMenu_CancelAgentRequests" xml:space="preserve"><value>保留中の AI 依頼を取り消す</value></data>
+  <data name="Tree_ContextMenu_SerializeChildren" xml:space="preserve"><value>子タスクを並び順で直列化</value></data>
+  <data name="Tree_ContextMenu_RequestBreakdown_NeedsSave" xml:space="preserve"><value>先にドキュメントを保存してほしいっす。AI からは保存済みファイルしか見えないっす。</value></data>
+  <data name="Tree_ContextMenu_RequestBreakdown_NoAgent" xml:space="preserve"><value>AI は待機していません。依頼は wait_for_request が呼ばれるまで積まれたままになります。</value></data>
+  <data name="TabHeader_AgentWaitingTooltip" xml:space="preserve"><value>このタブで AI エージェントが依頼を待機中です</value></data>
 </root>

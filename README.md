@@ -45,6 +45,8 @@ Tree editing:
 | `Shift`+`Tab`      | Outdent the selected task (promote it to a sibling of its parent)  |
 | `Ctrl`+`Up`        | Move the selected task up among its siblings                       |
 | `Ctrl`+`Down`      | Move the selected task down among its siblings                     |
+| `Ctrl`+`1` … `9`   | Move the selected task to that position among its siblings         |
+| `F2`               | Rename the selected task (double-clicking a row does the same)     |
 | `Delete`           | Delete the selected task (including its children)                  |
 
 File:
@@ -98,8 +100,25 @@ Transport is Streamable HTTP in stateless mode (MCP 2025 spec). No session token
 
 ### Tools exposed
 
-- `get_document` — read-only. Returns the currently open WBS as YAML text.
-- `propose_changes` — submit a full replacement WBS as YAML text. Kudaki diffs it against the current document, shows the diff to the user, and waits (default 5 minutes, configurable per call) for approval or rejection. Returns one of: `approved` / `rejected` / `timeout` / `no_changes` / `error`.
+Every tool except `list_documents` takes a `documentId`, which is the document's absolute file path. Unsaved documents are not listed and cannot be addressed until they are saved.
+
+- `list_documents` — returns every open document as `{documentId, filePath, title, isActive, isDirty, revision, agentWaiting, pendingRequests}`. Call this first to pick a target.
+- `get_document` — read-only. Returns one document as YAML text.
+- `propose_changes` — submit a full replacement WBS as YAML text. Kudaki diffs it against the target document, shows the diff to the user, and waits (default 5 minutes, configurable per call) for approval or rejection. Returns one of: `auto_applied` / `approved` / `rejected` / `timeout` / `no_changes` / `unknown_document` / `revision_mismatch` / `error`. Pass `expectedRevision` from `list_documents` for optimistic concurrency.
+- `get_next_tasks` — returns the document's unfinished leaf tasks in the order they should be worked on, derived from the predecessor dependencies with the tree order breaking ties. The user controls that order from Kudaki, so read it again before each task instead of caching a plan.
+- `wait_for_request` — blocks until the user sends a request from Kudaki's UI, then returns it. See below.
+
+### Receiving requests from the user
+
+Kudaki's transport is stateless, so the server cannot push anything to an agent. Instead the agent parks in `wait_for_request`, and Kudaki hands over whatever the user asks for while it waits.
+
+Right-clicking a task in Kudaki offers **Ask AI to break down this task**. If an agent is waiting, the request is delivered immediately; if not, it is queued and the next `wait_for_request` call picks it up, so a request is never lost. `list_documents` reports both sides of this: `agentWaiting` is true only while a `wait_for_request` call is actually in flight, and `pendingRequests` counts requests still waiting to be collected.
+
+To stand by for requests, tell your agent something like:
+
+> Call `wait_for_request` for `<path>`. When a breakdown request arrives, split that task into concrete child tasks and send them with `propose_changes`, then wait again.
+
+While `wait_for_request` is blocking, that agent session cannot do anything else, so ask for it deliberately rather than leaving it on by default. When splitting a task, distribute the parent's estimated and remaining hours across the new children: Kudaki ignores a parent's own hours once it has children, so skipping this resets the task's progress to zero.
 
 ### Connecting from Claude Code
 
