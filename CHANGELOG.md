@@ -5,6 +5,26 @@ All notable changes to Kudaki are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-03
+
+### Added
+
+- **Ask an AI agent to break down a task.** Right-clicking a task offers **Ask AI to break down this task**. Kudaki's MCP transport is stateless and cannot push to an agent, so an agent picks the request up by calling the new `wait_for_request` tool, which blocks until you send one. If an agent is standing by the request is delivered immediately; if not it is queued and the next `wait_for_request` call collects it, so a request is never lost. `list_documents` now reports `agentWaiting` (true only while a `wait_for_request` call is actually in flight) and `pendingRequests`. A breakdown request carries the task's estimated and remaining hours so the agent can distribute them across the new children instead of resetting the task's progress.
+- **`get_next_tasks` tool.** Returns a document's unfinished leaf tasks in the order they should be worked on, derived from the predecessor dependencies with the tree order breaking ties, along with the unfinished predecessors still gating each one. You control that order from Kudaki, so an agent can follow your priorities instead of choosing its own.
+- **Reordering by position.** `Ctrl`+`1` through `Ctrl`+`9` move the selected task to that position among its siblings — random access for what previously took repeated `Ctrl`+`Up` / `Ctrl`+`Down`.
+- **Link children in list order.** A new right-click action on a parent turns the current order of its children into a finish-to-start dependency chain, so "this is the order I want these done in" becomes real dependencies that show up in the arrow diagram and in `get_next_tasks`.
+
+### Changed
+
+- **Task titles are no longer edited by a single click.** A click now only selects the row; press `F2` or double-click to start editing. `Enter` commits, `Escape` restores the title the edit started from, and `Up` / `Down` commit and move to the neighbouring row. `Left`, `Right`, `Home` and `End` move the caret while editing.
+- **Tab labels no longer start with "Kudaki - ".** Every tab beginning with the application name made each document look like one of Kudaki's own files. Tabs now show the file name alone, and when two open documents share a file name the shortest distinguishing folder path is appended — `tasks.wbs.yaml — VisualAudioRoutingApp` and `tasks.wbs.yaml — ClassDesign`. A folder shared by all of them is skipped, and more levels are added only when fewer would leave two labels identical.
+- **MCP `list_documents` returns the file name as `title`** instead of the window title, which carried the same misleading "Kudaki - " prefix.
+
+### Fixed
+
+- **A disconnected agent left an approval waiting.** `propose_changes` never passed its cancellation token to the approval queue, so closing an agent session (Ctrl+C in Claude Code, for instance) left the call parked until it timed out.
+- **Context menus used the default light Windows styling.** The menu items set a light foreground intended for Kudaki's dark theme, so on the light default background the enabled items were nearly unreadable while the disabled ones stood out — exactly backwards. This went unnoticed while the tree's context menu held a single, usually disabled, item.
+
 ## [0.5.0] - 2026-09-03
 
 ### Added
