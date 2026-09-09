@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Kudaki.App.Models;
 using Kudaki.App.Services;
+using Kudaki.App.ViewModels;
 using ModelContextProtocol.Server;
 
 namespace Kudaki.App.Services.Mcp;
@@ -139,11 +142,156 @@ public static class KudakiMcpTools
         {
             proposed = _yaml.DeserializeFromString(yaml);
         }
+        catch (WbsLoadException wex) when (wex.InnerException is YamlDotNet.Core.YamlException yex)
+        {
+            // #5: YAML パースエラーは line / column を含めて AI が自己修復できる形で返す。
+            return YamlParseErrorJson(yex);
+        }
+        catch (YamlDotNet.Core.YamlException yex)
+        {
+            return YamlParseErrorJson(yex);
+        }
         catch (Exception ex)
         {
             return Json("error", $"YAML parse failed: {ex.Message}");
         }
 
+        return await ApplyProposedAsync(doc, proposed, source, timeoutSeconds, requireApproval, ct).ConfigureAwait(false);
+    }
+
+    // v0.7 t-update-tasks-api: propose_changes の short-form。
+    // RemainingHours 更新 と Notes 追記だけを id ベースで受ける。全文送信を回避してトークン節約。
+    // 内部で current YAML を clone して updates を model 上に apply、後は propose_changes と同じ
+    // DiffCalculator + auto-apply / 承認 UI パイプに合流させる。
+    [McpServerTool(Name = "update_tasks")]
+    [Description(
+        "Short-form API for the common case of updating RemainingHours and appending to Notes on existing " +
+        "tasks. You pass a list of updates keyed by taskId — Kudaki clones the current document, applies the " +
+        "updates internally, and runs the same diff + auto-apply + approval pipeline as propose_changes. " +
+        "When the user has auto-apply enabled and all your updates qualify as light (RemainingHours and/or " +
+        "Notes append), the change is applied without the approval UI (returns `auto_applied`). " +
+        "Adding or removing tasks, changing titles, estimates, dependencies, or restructuring the tree is " +
+        "NOT supported here — use propose_changes for those. " +
+        "Returns the same JSON shape as propose_changes: `auto_applied` / `approved` / `rejected` / `timeout` / " +
+        "`no_changes` / `unknown_document` / `unknown_task` / `revision_mismatch` / `error`.")]
+    public static async Task<string> UpdateTasks(
+        [Description("Absolute file path of the target document (from list_documents). Required.")]
+        string documentId,
+        [Description("Array of update entries. Each entry: {\"id\":\"task-id\",\"remainingHours\":<number>,\"notesAppend\":\"text\"}. " +
+                     "`id` is required and must match an existing taskId. At least one of `remainingHours` or " +
+                     "`notesAppend` must be present per entry. `notesAppend` is appended to the existing Notes " +
+                     "with a blank line separator when Notes is non-empty (append-only, so it stays on the " +
+                     "auto-apply path). To rewrite Notes wholesale, add tasks, change other fields, or move " +
+                     "things around, call propose_changes instead.")]
+        TaskUpdate[] updates,
+        [Description("Optional caller identification, shown to the user in the review UI (e.g. 'Claude Code')")]
+        string source = "AI agent",
+        [Description("Optional approval timeout in seconds (default 300 = 5 minutes). Only used when the change " +
+                     "falls off the auto-apply path (e.g. user disabled auto-apply, or requireApproval=true).")]
+        int timeoutSeconds = 300,
+        [Description("If true, force manual approval UI even when the change qualifies for auto-apply. " +
+                     "AI can only tighten the policy (not loosen it).")]
+        bool requireApproval = false,
+        [Description("Optional. Expected current revision (from list_documents). If specified and does not " +
+                     "match the current server-side revision, the propose is rejected with " +
+                     "`result:revision_mismatch` WITHOUT touching the document.")]
+        string? expectedRevision = null,
+        System.Threading.CancellationToken ct = default)
+    {
+        var doc = DocumentRegistry.Instance.Resolve(documentId);
+        if (doc is null)
+        {
+            return Json("unknown_document", $"documentId not found: {documentId}. Call list_documents first.");
+        }
+
+        if (updates is null || updates.Length == 0)
+        {
+            return Json("error", "updates array is empty; specify at least one update entry.");
+        }
+
+        // revision check (propose_changes と同じ挙動)
+        if (!string.IsNullOrEmpty(expectedRevision))
+        {
+            var currentRevision = doc.GetRevision();
+            if (!string.Equals(currentRevision, expectedRevision, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{{\"result\":\"revision_mismatch\",\"expected\":{JsonString(expectedRevision)},\"current\":{JsonString(currentRevision)}}}";
+            }
+        }
+
+        // 現在の Document を YAML round-trip で clone してから update を適用する。
+        // 直接 doc.Document を触ると承認前に UI に見える状態を書き換えることになるので絶対 NG。
+        WbsDocument proposed;
+        try
+        {
+            proposed = _yaml.DeserializeFromString(doc.GetDocumentYamlSnapshot());
+        }
+        catch (Exception ex)
+        {
+            return Json("error", $"Failed to clone current document: {ex.Message}");
+        }
+
+        var map = new Dictionary<string, TaskNode>(StringComparer.Ordinal);
+        foreach (var t in proposed.Tasks) FlattenTasksInto(t, map);
+
+        var unknownIds = new List<string>();
+        var invalidEntries = new List<string>();
+        foreach (var u in updates)
+        {
+            if (u is null || string.IsNullOrEmpty(u.Id))
+            {
+                invalidEntries.Add("<missing id>");
+                continue;
+            }
+            if (u.RemainingHours is null && u.NotesAppend is null)
+            {
+                invalidEntries.Add(u.Id);
+                continue;
+            }
+            if (!map.TryGetValue(u.Id, out var node))
+            {
+                unknownIds.Add(u.Id);
+                continue;
+            }
+
+            if (u.RemainingHours.HasValue) node.RemainingHours = u.RemainingHours;
+            if (u.NotesAppend is not null)
+            {
+                if (string.IsNullOrEmpty(node.Notes))
+                {
+                    node.Notes = u.NotesAppend;
+                }
+                else
+                {
+                    // 段落区切りの空行を挟む (Kudaki UI では Markdown として描画される)。
+                    // append-only 判定は「After が Before で始まる」なので prefix 一致は維持される。
+                    node.Notes = node.Notes + "\n\n" + u.NotesAppend;
+                }
+            }
+        }
+
+        if (unknownIds.Count > 0)
+        {
+            return Json("unknown_task", $"Task ids not found: {string.Join(", ", unknownIds)}");
+        }
+        if (invalidEntries.Count > 0)
+        {
+            return Json("error", $"Update entries missing id or both remainingHours and notesAppend: {string.Join(", ", invalidEntries)}");
+        }
+
+        return await ApplyProposedAsync(doc, proposed, source, timeoutSeconds, requireApproval, ct).ConfigureAwait(false);
+    }
+
+    // propose_changes / update_tasks の共通末尾処理。
+    // proposed WbsDocument に対して DiffCalculator を回し、auto-apply / 承認 UI / apply の分岐をする。
+    private static async Task<string> ApplyProposedAsync(
+        DocumentViewModel doc,
+        WbsDocument proposed,
+        string source,
+        int timeoutSeconds,
+        bool requireApproval,
+        System.Threading.CancellationToken ct)
+    {
         var current = doc.Document;
         var changes = DiffCalculator.Compare(current, proposed);
         if (changes.Count == 0)
@@ -207,6 +355,188 @@ public static class KudakiMcpTools
             ApprovalResult.TimedOut => "{\"result\":\"timeout\"}",
             _ => "{\"result\":\"unknown\"}",
         };
+    }
+
+    private static void FlattenTasksInto(TaskNode node, Dictionary<string, TaskNode> map)
+    {
+        map[node.Id] = node;
+        foreach (var child in node.Children)
+        {
+            FlattenTasksInto(child, map);
+        }
+    }
+
+    // v0.7 t-find-task: 1 タスクだけを YAML fragment で返す (全文取らずに済ませる)。
+    [McpServerTool(Name = "find_task")]
+    [Description(
+        "Return a single task from the document as a YAML fragment. Use this when you already know the " +
+        "taskId and only need that one task's fields — avoids pulling the whole document. " +
+        "Set `includeChildren` to false to get just the task's own fields (children are elided). " +
+        "Returns the YAML text on success, or JSON error {\"result\":\"unknown_document\"|\"unknown_task\", ...}.")]
+    public static string FindTask(
+        [Description("Absolute file path of the target document (from list_documents). Required.")]
+        string documentId,
+        [Description("Task id (matches the `id` field in the YAML). Required.")]
+        string taskId,
+        [Description("If true (default), include the task's children subtree. Set false to get only this task's own fields.")]
+        bool includeChildren = true)
+    {
+        var doc = DocumentRegistry.Instance.Resolve(documentId);
+        if (doc is null)
+        {
+            return Json("unknown_document", $"documentId not found: {documentId}. Call list_documents first.");
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        var snapshot = dispatcher is null || dispatcher.CheckAccess()
+            ? doc.Document
+            : dispatcher.Invoke(() => doc.Document);
+
+        var map = new Dictionary<string, TaskNode>(StringComparer.Ordinal);
+        foreach (var t in snapshot.Tasks) FlattenTasksInto(t, map);
+
+        if (!map.TryGetValue(taskId, out var node))
+        {
+            return Json("unknown_task", $"taskId not found: {taskId}");
+        }
+
+        return _yaml.SerializeTaskToString(node, includeChildren);
+    }
+
+    // v0.7 t-list-tasks: subtree / status で絞り込んだ列挙。get_next_tasks は「次にやる順」だが
+    // これは「何がある?」の探索用。
+    [McpServerTool(Name = "list_tasks")]
+    [Description(
+        "List tasks in the document with optional subtree and status filters. Use this for exploration " +
+        "(\"what's in this document?\", \"what's under this ancestor?\", \"what's still open?\") — for " +
+        "\"what should I do next?\" call get_next_tasks instead. " +
+        "`ancestorId` restricts to that task's subtree (the ancestor itself is not included in the result). " +
+        "`status` filters by state: `open` = rolled-up remainingHours > 0, `done` = remainingHours reached 0, " +
+        "`all` (default) = every task. `leafOnly` restricts to leaf tasks (no children). " +
+        "Returns a JSON array of {taskId, title, ancestorTitles, estimateHours, remainingHours, " +
+        "rolledUpRemainingHours, isLeaf}.")]
+    public static string ListTasks(
+        [Description("Absolute file path of the target document (from list_documents). Required.")]
+        string documentId,
+        [Description("Optional. If set, only tasks under this ancestor's subtree are returned (the ancestor itself is excluded).")]
+        string? ancestorId = null,
+        [Description("Optional filter: `open` | `done` | `all` (default). `open` = rolledUpRemainingHours > 0.")]
+        string? status = null,
+        [Description("If true, only leaf tasks (no children) are returned. Default false = internal nodes included.")]
+        bool leafOnly = false,
+        [Description("Maximum number of tasks to return. Default 100.")]
+        int limit = 100)
+    {
+        var doc = DocumentRegistry.Instance.Resolve(documentId);
+        if (doc is null)
+        {
+            return Json("unknown_document", $"documentId not found: {documentId}. Call list_documents first.");
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        var snapshot = dispatcher is null || dispatcher.CheckAccess()
+            ? doc.Document
+            : dispatcher.Invoke(() => doc.Document);
+
+        // ancestor 指定なら subtree の起点をそこの Children に固定する。
+        IReadOnlyList<TaskNode> roots;
+        if (!string.IsNullOrEmpty(ancestorId))
+        {
+            var map = new Dictionary<string, TaskNode>(StringComparer.Ordinal);
+            foreach (var t in snapshot.Tasks) FlattenTasksInto(t, map);
+            if (!map.TryGetValue(ancestorId, out var anc))
+            {
+                return Json("unknown_task", $"ancestorId not found: {ancestorId}");
+            }
+            roots = anc.Children;
+        }
+        else
+        {
+            roots = snapshot.Tasks;
+        }
+
+        var filterOpen = string.Equals(status, "open", StringComparison.OrdinalIgnoreCase);
+        var filterDone = string.Equals(status, "done", StringComparison.OrdinalIgnoreCase);
+        // 未指定 or "all" は素通し。それ以外の未知の値も素通し (誤指定で 0 件になるより素通しが親切)。
+
+        if (limit < 1) limit = 1;
+
+        var sb = new StringBuilder();
+        sb.Append('[');
+        var count = 0;
+        var ancestorPath = new List<string>();
+        WalkList(roots, ancestorPath, sb, ref count, limit, filterOpen, filterDone, leafOnly);
+        sb.Append(']');
+        return sb.ToString();
+    }
+
+    private static void WalkList(
+        IReadOnlyList<TaskNode> nodes,
+        List<string> ancestorTitles,
+        StringBuilder sb,
+        ref int count,
+        int limit,
+        bool filterOpen,
+        bool filterDone,
+        bool leafOnly)
+    {
+        foreach (var node in nodes)
+        {
+            if (count >= limit) return;
+
+            var isLeaf = node.Children.Count == 0;
+            var rolled = node.GetRolledUpRemainingHours();
+
+            var include = true;
+            if (leafOnly && !isLeaf) include = false;
+            if (filterOpen && rolled <= 0.0) include = false;
+            if (filterDone && rolled > 0.0) include = false;
+
+            if (include)
+            {
+                if (count > 0) sb.Append(',');
+                count++;
+                sb.Append('{');
+                sb.Append("\"taskId\":").Append(JsonString(node.Id)).Append(',');
+                sb.Append("\"title\":").Append(JsonString(node.Title)).Append(',');
+                sb.Append("\"ancestorTitles\":[");
+                for (var i = 0; i < ancestorTitles.Count; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    sb.Append(JsonString(ancestorTitles[i]));
+                }
+                sb.Append("],");
+                sb.Append("\"estimateHours\":").Append(NullableNumber(node.EstimateHours)).Append(',');
+                sb.Append("\"remainingHours\":").Append(NullableNumber(node.RemainingHours)).Append(',');
+                sb.Append("\"rolledUpRemainingHours\":")
+                    .Append(rolled.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',');
+                sb.Append("\"isLeaf\":").Append(isLeaf ? "true" : "false");
+                sb.Append('}');
+            }
+
+            if (node.Children.Count > 0)
+            {
+                ancestorTitles.Add(node.Title);
+                WalkList(node.Children, ancestorTitles, sb, ref count, limit, filterOpen, filterDone, leafOnly);
+                ancestorTitles.RemoveAt(ancestorTitles.Count - 1);
+            }
+        }
+    }
+
+    private static string YamlParseErrorJson(YamlDotNet.Core.YamlException yex)
+    {
+        // YamlException.Start は Mark 構造体で Line/Column を持つ (1-based)。
+        var line = yex.Start.Line;
+        var column = yex.Start.Column;
+        var sb = new StringBuilder();
+        sb.Append("{\"result\":\"error\",\"kind\":\"yaml_parse\",\"line\":")
+          .Append(line)
+          .Append(",\"column\":")
+          .Append(column)
+          .Append(",\"message\":")
+          .Append(JsonString(yex.Message))
+          .Append('}');
+        return sb.ToString();
     }
 
     [McpServerTool(Name = "get_next_tasks")]
@@ -372,4 +702,18 @@ public static class KudakiMcpTools
         sb.Append('"');
         return sb.ToString();
     }
+}
+
+// v0.7 update_tasks の 1 エントリ。MCP SDK は System.Text.Json でパラメータを deserialize するので
+// JsonPropertyName で AI が書きやすい camelCase key に固定する。
+public sealed class TaskUpdate
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("remainingHours")]
+    public double? RemainingHours { get; set; }
+
+    [JsonPropertyName("notesAppend")]
+    public string? NotesAppend { get; set; }
 }

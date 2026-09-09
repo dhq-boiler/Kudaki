@@ -55,6 +55,29 @@ public sealed class YamlStorageService
         return _serializer.Serialize(document);
     }
 
+    // MCP find_task 用: TaskNode 1 個だけを YAML fragment として返す。
+    // includeChildren=false なら子ツリーを空にした shallow copy を serialize する。
+    // 用途: AI が「id 指定で 1 タスクだけ確認したい」ときに全文取らずに済ませる。
+    public string SerializeTaskToString(TaskNode task, bool includeChildren = true)
+    {
+        if (includeChildren) return _serializer.Serialize(task);
+
+        // 元 node を汚さないよう shallow clone (fields はプリミティブ / 不変 or Model の意図で共有 OK)。
+        var clone = new TaskNode
+        {
+            Id = task.Id,
+            Title = task.Title,
+            EstimateHours = task.EstimateHours,
+            RemainingHours = task.RemainingHours,
+            Assignee = task.Assignee,
+            DueDate = task.DueDate,
+            Notes = task.Notes,
+            PredecessorIds = new System.Collections.Generic.List<string>(task.PredecessorIds),
+            Children = new System.Collections.Generic.List<TaskNode>(),
+        };
+        return _serializer.Serialize(clone);
+    }
+
     public async Task SaveAsync(WbsDocument document, string path, CancellationToken ct = default)
     {
         document.ModifiedAt = DateTime.UtcNow;
