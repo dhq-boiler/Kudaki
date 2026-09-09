@@ -5,6 +5,21 @@ All notable changes to Kudaki are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-09
+
+### Added
+
+- **`update_tasks` MCP tool.** A short-form API for the two edits agents make most often: bumping `remainingHours` and appending to `notes` on existing tasks. Takes a list of `{id, remainingHours?, notesAppend?}` entries instead of the full document, so an agent can mark five tasks complete without re-sending everything else. Runs through the same auto-apply / approval pipeline as `propose_changes`, and `notesAppend` uses a blank-line separator so the result stays on the append-only path the auto-apply classifier recognizes.
+- **`find_task` MCP tool.** Returns a single task as a YAML fragment when the agent already knows the id and only needs that task's fields. `includeChildren=false` returns just the task itself, without the subtree.
+- **`list_tasks` MCP tool.** Enumerates tasks with optional `ancestorId` (restrict to a subtree), `status` (`open` / `done` / `all`), and `leafOnly` filters. For "what should I do next?" `get_next_tasks` is still the right call; `list_tasks` covers the exploration side ("what is under this parent?", "what is still open?").
+- **`docs/agent-guide.md`.** A short operating guide for agents driving Kudaki through MCP: the three-step read/write loop, which tool to use for which write, the read tools compared, the `wait_for_request` lifecycle, the `agentWaiting` / `pendingRequests` state table, and every response shape the write tools can return. Includes a recipe for starting Kudaki from a Claude Code `SessionStart` hook so an agent no longer has to ask the user to launch it.
+- **`docs/agent-yaml-style.md`.** YAML conventions that keep agent proposals clean: which block scalar to use for notes (`|` for multi-line, double-quoted for one-liners; `>` avoided because folded scalars silently collapse line breaks), how to format Markdown headings inside notes, and a note on round-trip discipline to keep diffs signal-only.
+
+### Changed
+
+- **`propose_changes` error responses now identify the failure kind.** When YAML fails to parse, the response is `{result:"error", kind:"yaml_parse", line, column, message}` instead of a plain message string, so an agent can jump straight to the offending line and self-correct. Other errors keep the plain `message` shape and reserve `kind` for future validation categories.
+- **README lists the new tools** in the MCP tools section and includes an inline `predecessorIds` example so an agent can see the dependency shape without opening the demo file. New links to `docs/agent-guide.md` and `docs/agent-yaml-style.md` point the way in.
+
 ## [0.6.0] - 2026-09-03
 
 ### Added
