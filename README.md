@@ -90,7 +90,27 @@ To add a predecessor, select a task and pick one from the "Predecessor tasks" dr
 
 Right-click a parent task in the tree and pick "Show arrow diagram" to open a per-parent Activity-on-Node view. Nodes are laid out with a Kahn topological sort; only edges internal to the current parent scope are drawn. A lightning bolt marker on a child indicates that child has an inbound predecessor from outside the current parent.
 
-A small demo file exercising cross-phase dependencies is in [`docs/deps-demo.wbs.yaml`](docs/deps-demo.wbs.yaml).
+A small demo file exercising cross-phase dependencies is in [`docs/deps-demo.wbs.yaml`](docs/deps-demo.wbs.yaml). In YAML, predecessors are a list of sibling task ids under `predecessorIds`:
+
+```yaml
+- id: sec-impl
+  title: Implementation
+  children:
+  - id: user-model
+    title: User model
+    estimateHours: 4
+  - id: filter-service
+    title: Filter service
+    estimateHours: 6
+  - id: ui
+    title: UI wiring
+    estimateHours: 3
+    predecessorIds:
+    - user-model
+    - filter-service
+```
+
+`ui` will not appear in `get_next_tasks` until both `user-model` and `filter-service` have reached zero remaining hours. Only sibling ids under the same parent are legal predecessors.
 
 ## MCP server (AI agent integration)
 
@@ -104,7 +124,10 @@ Every tool except `list_documents` takes a `documentId`, which is the document's
 
 - `list_documents` — returns every open document as `{documentId, filePath, title, isActive, isDirty, revision, agentWaiting, pendingRequests}`. Call this first to pick a target.
 - `get_document` — read-only. Returns one document as YAML text.
-- `propose_changes` — submit a full replacement WBS as YAML text. Kudaki diffs it against the target document, shows the diff to the user, and waits (default 5 minutes, configurable per call) for approval or rejection. Returns one of: `auto_applied` / `approved` / `rejected` / `timeout` / `no_changes` / `unknown_document` / `revision_mismatch` / `error`. Pass `expectedRevision` from `list_documents` for optimistic concurrency.
+- `find_task` — returns a single task as a YAML fragment. Use it when you already know the taskId and only need that one task, instead of pulling the whole document. `includeChildren=false` returns just the task's own fields.
+- `list_tasks` — enumerates tasks with optional `ancestorId` (restrict to a subtree), `status` (`open` / `done` / `all`), and `leafOnly` filters. Use it for exploration ("what's in this document?", "what's still open under X?"); for "what should I do next?" use `get_next_tasks` instead.
+- `propose_changes` — submit a full replacement WBS as YAML text. Kudaki diffs it against the target document, shows the diff to the user, and waits (default 5 minutes, configurable per call) for approval or rejection. Returns one of: `auto_applied` / `approved` / `rejected` / `timeout` / `no_changes` / `unknown_document` / `revision_mismatch` / `error`. Pass `expectedRevision` from `list_documents` for optimistic concurrency. YAML parse errors now include `kind: "yaml_parse"`, `line`, and `column` so agents can self-correct.
+- `update_tasks` — short-form API for the common case of bumping `remainingHours` and appending to `notes` on existing tasks. Takes a list of `{id, remainingHours?, notesAppend?}` entries instead of the full document, so it does not spend tokens re-sending everything you did not touch. Runs through the same auto-apply / approval pipeline as `propose_changes`.
 - `get_next_tasks` — returns the document's unfinished leaf tasks in the order they should be worked on, derived from the predecessor dependencies with the tree order breaking ties. The user controls that order from Kudaki, so read it again before each task instead of caching a plan.
 - `wait_for_request` — blocks until the user sends a request from Kudaki's UI, then returns it. See below.
 
@@ -136,6 +159,8 @@ Add to `~/.claude/mcp.json` (or a per-project `.claude/mcp.json`):
 ```
 
 Kudaki must be running for the MCP endpoint to be reachable.
+
+For agent-side operating notes — the three-step read/write loop, which tool to use for which write, the standing-by workflow, and the response shapes to expect — see [`docs/agent-guide.md`](docs/agent-guide.md). For the YAML conventions that keep proposals clean (which block scalar to use for notes, how to format headings, etc.), see [`docs/agent-yaml-style.md`](docs/agent-yaml-style.md).
 
 ### Approval UI
 
