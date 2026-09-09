@@ -1,0 +1,190 @@
+version: 2
+title: Kudaki v0.7 — AI エージェント feedback 対応
+createdAt: 2026-09-09T00:00:00.0000000Z
+modifiedAt: 2026-09-09T11:22:33.5087036Z
+tasks:
+- id: sec-background
+  title: 背景・目的
+  notes: >
+    docs/ai-agent-feedback-2026-09-09.md の 7 項目 + wishlist に対する対応。
+
+    STAMINA LAB dogfood 中に AI (Claude Code) 側から見えた摩擦点を潰す。
+
+
+    優先度 (先生と合意): 「順番にやる」= #1 → #2 → #5 → #7 → #3 → #6 → #4 の順。
+
+    #4 (Kudaki 自動起動) は設計が重いので後回し扱い、docs レシピで妥協する可能性あり。
+- id: sec-token-cost
+  title: '#1 全文送信のトークンコスト削減'
+  children:
+  - id: t-update-tasks-api
+    title: update_tasks (short API) を MCP に追加
+    estimateHours: 6
+    remainingHours: 0
+    notes: >
+      対象: RemainingHours 更新 + Notes append の頻出操作。
+
+      auto-apply の light-update パスに乗せて全文送信不要にする。
+
+
+      入力: documentId, updates[] (id, remainingHours?, notesAppend?), expectedRevision?
+
+      出力: propose_changes と同じ結果 (auto_applied / rejected / revision_mismatch / error)
+
+
+      設計メモ:
+
+      - Kudaki 内部で proposed doc を組み立てて DiffCalculator に流す (既存パス共通化)
+
+      - id 解決に失敗したら error (該当 id を list で返す)
+
+      - auto-apply 無効時は承認 UI 経由 (通常の propose_changes と同じ扱い)
+
+      - requireApproval フラグは提供する (tighten only、既存踏襲)
+
+
+      ✅ 完了 2026-09-09。KudakiMcpTools.UpdateTasks を追加。既存 ProposeChanges の 末尾処理を ApplyProposedAsync helper に切り出して共通化。TaskUpdate DTO は JsonPropertyName で camelCase 固定。notesAppend は "\n\n" 区切りで prefix 維持 (auto-apply 判定の IsNotesAppendOnly が通る形)。
+  - id: t-update-tasks-tests
+    title: update_tasks の手動 dogfood 確認
+    estimateHours: 1
+    remainingHours: 1
+    notes: >
+      Kudaki 自身の WBS で 3-5 タスクの remainingHours を落とす propose を打つ。
+
+      auto_applied で返ってきて Kudaki UI に反映されることを確認。
+
+
+      2026-09-09 時点: Kudaki 本体の rebuild + 再起動は済み、tool は Kudaki 側に expose されているが Claude Code の MCP client キャッシュに未反映。/mcp reconnect か Claude Code 再起動後に検証する。
+- id: sec-query-api
+  title: '#2 タスク検索 / クエリ API'
+  children:
+  - id: t-find-task
+    title: find_task (単発取得) を MCP に追加
+    estimateHours: 3
+    remainingHours: 0
+    notes: >
+      入力: documentId, taskId
+
+      出力: そのタスクの YAML fragment (children は含めるか flag で選ぶ)
+
+      not found のとき: {result:"unknown_task", ...}
+
+
+      ✅ 完了 2026-09-09。KudakiMcpTools.FindTask を追加。includeChildren=false 用に YamlStorageService.SerializeTaskToString(TaskNode, bool) helper を追加。
+  - id: t-list-tasks
+    title: list_tasks (絞り込み列挙) を MCP に追加
+    estimateHours: 4
+    remainingHours: 0
+    notes: >
+      入力: documentId, ancestorId? (指定なら subtree のみ), status? (open/done), limit?
+
+      出力: [{taskId, title, ancestorTitles, remainingHours, ...}] の JSON 配列
+
+
+      get_next_tasks は「次にやるべき順」だが list_tasks は「絞り込み列挙」で用途が違う。
+
+
+      ✅ 完了 2026-09-09。leafOnly flag も追加。WalkList で再帰列挙、rolledUpRemainingHours も一緒に返す (open/done の判定基準と揃える)。
+- id: sec-error-info
+  title: '#5 YAML パースエラーの行番号返却'
+  children:
+  - id: t-yaml-error-detail
+    title: propose_changes の error 応答に kind/line/column を追加
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      現状 `{result:"error", message: "..."}` だけ返している。
+
+      YamlDotNet の SemanticErrorException / SyntaxErrorException から Line/Column を拾う。
+
+
+      設計:
+
+      {result:"error", kind:"yaml_parse", line:42, column:10, message:"..."}
+
+      {result:"error", kind:"validation", message:"..."} (今後の Validation 用に kind 予約)
+
+
+      AI が「YAML 系エラーなら自己修復、validation なら人間相談」と分岐しやすくなる。
+
+
+      ✅ 完了 2026-09-09。propose_changes の catch を分岐して WbsLoadException.InnerException が YamlException のときと直 YamlException のとき両方から Start.Line/Column を拾って YamlParseErrorJson helper で返す。update_tasks も内部で YAML round-trip するが 現在の doc から作るので YAML パースエラーは基本発生しない (発生したら unknown error)。
+- id: sec-docs
+  title: 'docs 追記 (#7 / #3 / #6)'
+  children:
+  - id: t-doc-dependency-sample
+    title: '#7 Dependency 付きタスクの YAML サンプルを README/Getting Started に追記'
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      predecessorIds のフィールド名と最小サンプルを 1 個。
+
+      「sore-ui の predecessor に sore-user-model / sore-filter-service」的な例。
+
+      get_next_tasks との連携も 1 行で言及。
+
+
+      ✅ 完了 2026-09-09。README.md Task dependencies セクションに inline YAML サンプル追加、 get_next_tasks との連携も明記。
+  - id: t-doc-wait-for-request
+    title: '#3 wait_for_request / get_next_tasks のユースケース例'
+    estimateHours: 2
+    remainingHours: 0
+    notes: >
+      docs/ に「AI エージェント運用ガイド」的な md を 1 枚。
+
+      - 右クリック "Ask AI to break down this task" → wait_for_request → propose_changes の一連の流れ
+
+      - get_next_tasks で unblocked セッションを組む例
+
+      - agentWaiting / pendingRequests の状態遷移 (簡易図で OK)
+
+
+      ✅ 完了 2026-09-09。docs/agent-guide.md 新規作成。3-step loop、write tool の使い分け、 read tool 比較、wait_for_request lifecycle、agentWaiting/pendingRequests 4状態表、 レスポンス型一覧を含む。README からもリンク。
+  - id: t-doc-yaml-style
+    title: '#6 AI 向け YAML スタイルガイド'
+    estimateHours: 1
+    remainingHours: 0
+    notes: >
+      docs/ に 1 ページ:
+
+      - 短い notes は double-quote
+
+      - 段落含む長い notes は `|` (literal) 推奨、`>` (folded) は非推奨 (fold 挙動の混乱回避)
+
+      - 見出しは Markdown 太字 `**...**`
+
+
+      ✅ 完了 2026-09-09。docs/agent-yaml-style.md 新規作成。round-trip discipline も 追記 (既存 scalar style を無闇に変えない、無駄な diff を出さない)。README からもリンク。
+- id: sec-headless
+  title: '#4 Kudaki 未起動時の自動起動 (別議論)'
+  children:
+  - id: t-headless-decision
+    title: kudaki --headless か Claude Code hooks レシピか、方針決め
+    estimateHours: 2
+    remainingHours: 2
+    notes: >
+      技術的に WPF ヘッドレス起動は微妙なので、まず設計判断だけ:
+
+      1. `kudaki --start` CLI で通常起動 (承認 UI もそのまま)
+
+      2. `kudaki --mcp-only` で MCP ポートだけ立ち上げ (承認 UI は無し、propose は queue?)
+
+      3. Claude Code hooks の SessionStart で shortcut を叩く公式レシピを docs に書く
+
+
+      option 3 が一番現実的か。option 2 は承認モデルが破綻するので却下候補。
+
+
+      2026-09-09: 先生と方針相談待ち。
+- id: sec-wishlist
+  title: Wishlist (v0.8+ 検討)
+  notes: >
+    今回のスコープ外。dogfood 実感を蓄えてから優先度判断:
+
+    - タスクへの commit SHA / PR URL 紐付け
+
+    - 「今日 propose された変更」のダイジェスト
+
+    - propose_changes の preview モード
+
+    - タスク単位のコメントスレッド
