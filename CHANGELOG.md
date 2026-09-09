@@ -5,6 +5,12 @@ All notable changes to Kudaki are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-09-09
+
+### Fixed
+
+- **Open tabs could be lost after auto-updating from 0.6.0.** The regression the 0.5.0 release closed reopened under a different route: when the new process started after the update, `RestoreOpenDocumentsAsync` is scheduled through `Dispatcher.BeginInvoke` and is not guaranteed to run before `App.OnExit` fires; if the exit code path won the race, `PersistOpenDocuments` wrote `openDocuments: []` over the real list because the new process only had its initial empty document. `PersistOpenDocuments` now refuses to touch `settings.json` at all until `RestoreOpenDocumentsAsync` has actually run (success or failure both flip the guard), so an early exit can no longer clobber the tab list. `settings.backup-*.json` files in `%LOCALAPPDATA%\Kudaki\` still hold the pre-loss list for anyone who hit this on 0.7.0.
+
 ## [0.7.0] - 2026-09-09
 
 ### Added

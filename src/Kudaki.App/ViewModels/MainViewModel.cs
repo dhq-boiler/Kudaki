@@ -155,43 +155,60 @@ public sealed partial class MainViewModel : ObservableObject
     // 次回起動で正しく読めればそのまま元に戻る。
     private bool _settingsUnreadable;
 
+    // Restore が始まる前に PersistOpenDocuments が走ることを防ぐガード。
+    // 2026-09-09 の事故: v0.6.0 → v0.7.0 auto-update 直後、新プロセス起動時に
+    // Restore が Dispatcher キューで待たされる/走らないまま App.OnExit が発火して
+    // 「初期空 doc しかない Documents」で settings.OpenDocuments=[] を書き潰し、
+    // 開いていた 7 タブが復元不能になる事象が発生した。
+    // 「Restore を呼んでいないうちは絶対に触らない」の 1 行で潰す。
+    private bool _restoreCompleted;
+
     public async Task RestoreOpenDocumentsAsync()
     {
-        var loaded = _settingsStore.LoadDetailed();
-        if (loaded.Failed)
+        try
         {
-            // 2026-09-03 の事故: アップデート時に新旧プロセスが重なり、書き込み途中の
-            // settings.json を読んで既定値に落ち、その直後 watcher が [] を書いて
-            // タブ 4 個が消えた。読めなかったときは触らないのが唯一の正解。
-            _settingsUnreadable = true;
-            System.Diagnostics.Debug.WriteLine("[Kudaki.Restore] settings unreadable; persistence disabled for this session");
-            return;
-        }
-
-        var settings = loaded.Settings;
-        if (settings.OpenDocuments is null || settings.OpenDocuments.Count == 0) return;
-
-        foreach (var path in settings.OpenDocuments)
-        {
-            if (!File.Exists(path)) continue;
-            try
+            var loaded = _settingsStore.LoadDetailed();
+            if (loaded.Failed)
             {
-                await OpenInNewTabAsync(path).ConfigureAwait(true);
+                // 2026-09-03 の事故: アップデート時に新旧プロセスが重なり、書き込み途中の
+                // settings.json を読んで既定値に落ち、その直後 watcher が [] を書いて
+                // タブ 4 個が消えた。読めなかったときは触らないのが唯一の正解。
+                _settingsUnreadable = true;
+                System.Diagnostics.Debug.WriteLine("[Kudaki.Restore] settings unreadable; persistence disabled for this session");
+                return;
             }
-            catch (Exception ex)
+
+            var settings = loaded.Settings;
+            if (settings.OpenDocuments is null || settings.OpenDocuments.Count == 0) return;
+
+            foreach (var path in settings.OpenDocuments)
             {
-                // 個別 file の失敗 (YAML パース etc.) が全 tab 復元を停止しないよう吸収
-                System.Diagnostics.Debug.WriteLine($"[Kudaki.Restore] failed to open {path}: {ex}");
+                if (!File.Exists(path)) continue;
+                try
+                {
+                    await OpenInNewTabAsync(path).ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    // 個別 file の失敗 (YAML パース etc.) が全 tab 復元を停止しないよう吸収
+                    System.Diagnostics.Debug.WriteLine($"[Kudaki.Restore] failed to open {path}: {ex}");
+                }
+            }
+
+            if (settings.ActiveDocumentPath is not null)
+            {
+                var absActive = Path.GetFullPath(settings.ActiveDocumentPath);
+                var target = Documents.FirstOrDefault(d =>
+                    d.CurrentFilePath is not null &&
+                    string.Equals(Path.GetFullPath(d.CurrentFilePath), absActive, StringComparison.OrdinalIgnoreCase));
+                if (target is not null) ActiveDocument.Value = target;
             }
         }
-
-        if (settings.ActiveDocumentPath is not null)
+        finally
         {
-            var absActive = Path.GetFullPath(settings.ActiveDocumentPath);
-            var target = Documents.FirstOrDefault(d =>
-                d.CurrentFilePath is not null &&
-                string.Equals(Path.GetFullPath(d.CurrentFilePath), absActive, StringComparison.OrdinalIgnoreCase));
-            if (target is not null) ActiveDocument.Value = target;
+            // Failed / Success どちらの終端でも Persist ガードを解く。
+            // 例外で抜けたケースも finally で確実に立てる (Persist が一生停止するのを防ぐ)。
+            _restoreCompleted = true;
         }
     }
 
@@ -199,6 +216,10 @@ public sealed partial class MainViewModel : ObservableObject
     // Language 等の既存 field を保つため Load → 部分上書き → Save の順で操作する。
     public void PersistOpenDocuments()
     {
+        // 2026-09-09 事故対応: Restore が動く前に呼ばれたら、この session の Documents は
+        // 「初期空 doc しかない」= 意味のある状態ではないので、絶対に settings.json を触らない。
+        // ここで触ってしまうと openDocuments=[] を書き潰して開いていたタブが復元不能になる。
+        if (!_restoreCompleted) return;
         if (_settingsUnreadable) return;
         try
         {
