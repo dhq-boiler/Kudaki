@@ -24,52 +24,13 @@ public static class DiffCalculator
     public static IReadOnlyList<PendingChange> Compare(WbsDocument current, WbsDocument proposed)
     {
         var changes = new List<PendingChange>();
-
-        // ドキュメントレベル差分 (Title など)
-        var docFieldDiffs = new List<FieldDiff>();
-        if (current.Title != proposed.Title)
-        {
-            docFieldDiffs.Add(new FieldDiff
-            {
-                FieldName = nameof(WbsDocument.Title),
-                Before = current.Title,
-                After = proposed.Title,
-            });
-        }
-        if (docFieldDiffs.Count > 0)
-        {
-            // Overlay の表示用に stub TaskNode を挟む (Before/After.Title を「(ドキュメント全体)」に)
-            var stub = new TaskNode { Id = DocumentPseudoTaskId, Title = Strings.Diff_DocumentLevelPseudoTitle };
-            changes.Add(new PendingChange
-            {
-                Op = PendingChangeOp.Update,
-                TaskId = DocumentPseudoTaskId,
-                ParentId = null,
-                Before = stub,
-                After = stub,
-                FieldDiffs = docFieldDiffs,
-            });
-        }
-
+        AddDocumentLevelChange(current, proposed, changes);
         var currentFlat = Flatten(current);
         var proposedFlat = Flatten(proposed);
 
         var currentIds = new HashSet<string>(currentFlat.Keys);
         var proposedIds = new HashSet<string>(proposedFlat.Keys);
-
-        // Delete: current にあって proposed にない → 常に Manual (承認必須)
-        foreach (var id in currentIds.Except(proposedIds))
-        {
-            var entry = currentFlat[id];
-            changes.Add(new PendingChange
-            {
-                Op = PendingChangeOp.Delete,
-                TaskId = id,
-                ParentId = entry.ParentId,
-                Before = entry.Node,
-                Severity = ChangeSeverity.Manual,
-            });
-        }
+        AddDeletedChanges(changes, currentFlat, currentIds, proposedIds);
 
         // Add: proposed にあって current にない → 常に Manual (承認必須)
         foreach (var id in proposedIds.Except(currentIds))
@@ -110,6 +71,58 @@ public static class DiffCalculator
         // → 現状 PendingChange の init-only + デフォルト Manual なので追加操作不要
 
         return changes;
+    }
+
+    private static void AddDeletedChanges(
+        List<PendingChange> changes,
+        Dictionary<string, Entry> currentFlat,
+        HashSet<string> currentIds,
+        HashSet<string> proposedIds)
+    {
+
+        // Delete: current にあって proposed にない → 常に Manual (承認必須)
+        foreach (var id in currentIds.Except(proposedIds))
+        {
+            var entry = currentFlat[id];
+            changes.Add(new PendingChange
+            {
+                Op = PendingChangeOp.Delete,
+                TaskId = id,
+                ParentId = entry.ParentId,
+                Before = entry.Node,
+                Severity = ChangeSeverity.Manual,
+            });
+        }
+    }
+
+    private static void AddDocumentLevelChange(WbsDocument current, WbsDocument proposed, List<PendingChange> changes)
+    {
+
+        // ドキュメントレベル差分 (Title など)
+        var docFieldDiffs = new List<FieldDiff>();
+        if (current.Title != proposed.Title)
+        {
+            docFieldDiffs.Add(new FieldDiff
+            {
+                FieldName = nameof(WbsDocument.Title),
+                Before = current.Title,
+                After = proposed.Title,
+            });
+        }
+        if (docFieldDiffs.Count > 0)
+        {
+            // Overlay の表示用に stub TaskNode を挟む (Before/After.Title を「(ドキュメント全体)」に)
+            var stub = new TaskNode { Id = DocumentPseudoTaskId, Title = Strings.Diff_DocumentLevelPseudoTitle };
+            changes.Add(new PendingChange
+            {
+                Op = PendingChangeOp.Update,
+                TaskId = DocumentPseudoTaskId,
+                ParentId = null,
+                Before = stub,
+                After = stub,
+                FieldDiffs = docFieldDiffs,
+            });
+        }
     }
 
     // v03-mcp-auto-apply t-diff-classifier: Update 1 件を auto/manual に振り分ける。
