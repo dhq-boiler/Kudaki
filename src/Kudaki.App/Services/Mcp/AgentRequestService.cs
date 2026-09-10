@@ -111,7 +111,7 @@ public sealed class AgentRequestService
     {
         var tcs = new TaskCompletionSource<AgentRequest?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        await RunOnUiAsync(() =>
+        await UiDispatcher.RunOnUiAsync(() =>
         {
             if (_queue.Count > 0)
             {
@@ -134,21 +134,10 @@ public sealed class AgentRequestService
         finally
         {
             // ウェイターを必ず外す。ここを漏らすと「AI 待機中」表示が残り続けて嘘になる。
-            await RunOnUiAsync(() =>
+            await UiDispatcher.RunOnUiAsync(() =>
             {
                 if (_waiters.Remove(tcs)) WaiterCount.Value = _waiters.Count;
             }).ConfigureAwait(false);
         }
-    }
-
-    private static Task RunOnUiAsync(Action action)
-    {
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-        {
-            action();
-            return Task.CompletedTask;
-        }
-        return dispatcher.InvokeAsync(action).Task;
     }
 }

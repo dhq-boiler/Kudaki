@@ -57,7 +57,7 @@ public sealed class PendingChangesService
         TimeSpan? timeout = null,
         CancellationToken ct = default)
     {
-        await RunOnUiAsync(() => _pending.Add(set)).ConfigureAwait(false);
+        await UiDispatcher.RunOnUiAsync(() => _pending.Add(set)).ConfigureAwait(false);
 
         try
         {
@@ -79,7 +79,7 @@ public sealed class PendingChangesService
         }
         finally
         {
-            await RunOnUiAsync(() => _pending.Remove(set)).ConfigureAwait(false);
+            await UiDispatcher.RunOnUiAsync(() => _pending.Remove(set)).ConfigureAwait(false);
         }
     }
 
@@ -101,14 +101,4 @@ public sealed class PendingChangesService
         return _pending.FirstOrDefault(s => s.Id == setId);
     }
 
-    private static Task RunOnUiAsync(Action action)
-    {
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-        {
-            action();
-            return Task.CompletedTask;
-        }
-        return dispatcher.InvokeAsync(action).Task;
-    }
 }
