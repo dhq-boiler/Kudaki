@@ -68,12 +68,10 @@ public static class DependencyValidator
         int removed = 0;
         foreach (var vm in EnumerateTasks(root))
         {
-            var bad = vm.Predecessors
-                .Where(p => IsAncestorOrDescendant(vm, p))
-                .ToList();
-            foreach (var b in bad)
+            for (var i = vm.Predecessors.Count - 1; i >= 0; i--)
             {
-                vm.Predecessors.Remove(b);
+                if (!IsAncestorOrDescendant(vm, vm.Predecessors[i])) continue;
+                vm.Predecessors.RemoveAt(i);
                 removed++;
             }
         }
