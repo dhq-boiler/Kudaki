@@ -115,8 +115,8 @@
              落とした名前でコマンドを生成する (OpenAsync → OpenCommand)。 -->
         <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewDocumentCommand}"/>
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenCommand}"/>
-        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveCommand}"/>
-        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveAsCommand}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding ActiveDocument.Value.SaveCommand}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding ActiveDocument.Value.SaveAsCommand}"/>
         <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding ExportMarkdownCommand}"/>
         <!-- VS Code / Visual Studio 系標準の Ctrl+, で環境設定を開く -->
         <KeyBinding Key="OemComma" Modifiers="Ctrl" Command="{Binding OpenPreferencesCommand}"/>
@@ -124,8 +124,10 @@
         <!-- Enter / Alt+Enter は Window スコープにも配置 (Excel 的な「コミット→次行」)。
              複数行 TextBox (メモ, AcceptsReturn=True) は Enter を消費するので影響なし。
              Tree にフォーカスがあるときは Tree の InputBinding が先に食う。 -->
-        <KeyBinding Key="Enter" Command="{Binding AddSiblingToSelectedCommand}"/>
-        <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding AddChildToSelectedCommand}"/>
+        <KeyBinding Key="Enter" Command="{Binding ActiveDocument.Value.AddSiblingToSelectedCommand}"/>
+        <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding ActiveDocument.Value.AddChildToSelectedCommand}"/>
+        <!-- 詳細欄から Enter で追加した後も、F2 で選択行のタイトルへ移動できる。 -->
+        <KeyBinding Key="F2" Command="{Binding ActiveDocument.Value.BeginEditSelectedTitleCommand}"/>
     </Window.InputBindings>
 
     <!-- Landing overlay (splash 相当) を DockPanel の上に載せるため Grid で wrap。 -->
@@ -167,10 +169,10 @@
                     <Separator/>
                     <MenuItem Header="{x:Static loc:Strings.Menu_File_Save}"
                               InputGestureText="Ctrl+S"
-                              Command="{Binding SaveCommand}"/>
+                              Command="{Binding ActiveDocument.Value.SaveCommand}"/>
                     <MenuItem Header="{x:Static loc:Strings.Menu_File_SaveAs}"
                               InputGestureText="Ctrl+Shift+S"
-                              Command="{Binding SaveAsCommand}"/>
+                              Command="{Binding ActiveDocument.Value.SaveAsCommand}"/>
                     <Separator/>
                     <MenuItem Header="{x:Static loc:Strings.Menu_File_ExportMarkdown}"
                               InputGestureText="Ctrl+E"
@@ -183,10 +185,10 @@
                 <MenuItem Header="{x:Static loc:Strings.Menu_Edit}">
                     <MenuItem Header="{x:Static loc:Strings.Menu_Edit_AddSibling}"
                               InputGestureText="Enter"
-                              Command="{Binding AddSiblingToSelectedCommand}"/>
+                              Command="{Binding ActiveDocument.Value.AddSiblingToSelectedCommand}"/>
                     <MenuItem Header="{x:Static loc:Strings.Menu_Edit_AddChild}"
                               InputGestureText="Alt+Enter"
-                              Command="{Binding AddChildToSelectedCommand}"/>
+                              Command="{Binding ActiveDocument.Value.AddChildToSelectedCommand}"/>
                     <Separator/>
                     <MenuItem Header="{x:Static loc:Strings.Menu_Edit_Indent}"
                               InputGestureText="Tab"

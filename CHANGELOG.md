@@ -5,6 +5,18 @@ All notable changes to Kudaki are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-09-12
+
+### Fixed
+
+- **Save commands now follow the active tab.** After switching tabs, `Ctrl+S`, `Ctrl+Shift+S`, and the corresponding menu commands could still target the original document, leaving the visible tab's unsaved marker unchanged. They now save the selected document.
+- **F2 works after adding a task from the details pane.** When `Enter` added a sibling while a details field had focus, `F2` could not reach the tree's title-edit command. It is now available throughout the window and focuses the selected task's title. Window-level `Enter`, `Alt+Enter`, and the add-task menu commands also follow the active tab.
+
+### Changed
+
+- Simplified MCP UI dispatching and diff generation, and reduced temporary allocations during dependency sanitization.
+- Added Windows regression checks for saving across tabs and title-input focus after task creation.
+
 ## [0.7.1] - 2026-09-09
 
 ### Fixed

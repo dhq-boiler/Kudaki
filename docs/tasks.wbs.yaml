@@ -1,7 +1,7 @@
 version: 2
 title: Kudaki v0.7 — AI エージェント feedback 対応
 createdAt: 2026-09-09T00:00:00.0000000Z
-modifiedAt: 2026-09-09T11:22:33.5087036Z
+modifiedAt: 2026-09-12T07:13:39.9627783Z
 tasks:
 - id: sec-background
   title: 背景・目的
@@ -188,3 +188,18 @@ tasks:
     - propose_changes の preview モード
 
     - タスク単位のコメントスレッド
+- id: t-fix-active-tab-save
+  title: Ctrl+S が選択中のタブを保存せず未保存マークが残る問題を修正
+  estimateHours: 1
+  remainingHours: 0
+  notes: タブ切替後の保存コマンドのバインディングを修正し、ビルドと保存先の検証を行う。 2026-09-12：Ctrl+S / Ctrl+Shift+S と保存メニューを ActiveDocument.Value に直接バインド。ビルド成功（警告・エラー0）。WPFバインディングと実ファイルによる回帰検証3件成功、旧バインディングでは失敗を確認。実画面確認は Kudaki 用 VS を vs-mcp が認識せず未実施。起動中のインストール版には未反映。
+- id: t-fix-enter-f2-focus
+  title: Enter で同階層追加後に F2 のタイトル入力フォーカスが移らない問題を修正
+  estimateHours: 1
+  remainingHours: 0
+  notes: 追加後の選択とキーボードフォーカスの同期、タイトル編集開始の競合を調査し検証する。 2026-09-12：詳細欄から Enter で追加するとフォーカスが詳細欄に残り、ツリー限定の F2 が届かない条件を再現。Window に F2 を追加し、Enter／Alt+Enter／追加メニューも ActiveDocument.Value に追従。検証用の本番 MainWindow でコマンドバインディングを実行し、ツリーと詳細欄からの追加、F2 の入力フォーカス、タイトル更新、連続追加、タブ切替を確認。OS キー送信自体は未検証。保存回帰3件も成功、ビルド警告・エラー0。起動中のインストール版には未反映。
+- id: t-release-072
+  title: 保存と F2 の修正を v0.7.2 としてリリース
+  estimateHours: 1
+  remainingHours: 1
+  notes: バージョンと変更履歴を更新し、リリース対象の検証、タグの公開、GitHub Actions とインストーラー添付を確認する。
