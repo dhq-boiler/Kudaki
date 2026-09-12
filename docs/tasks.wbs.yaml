@@ -1,7 +1,7 @@
 version: 2
 title: Kudaki v0.7 — AI エージェント feedback 対応
 createdAt: 2026-09-09T00:00:00.0000000Z
-modifiedAt: 2026-09-12T07:13:39.9627783Z
+modifiedAt: 2026-09-12T07:19:32.1678620Z
 tasks:
 - id: sec-background
   title: 背景・目的
@@ -201,5 +201,5 @@ tasks:
 - id: t-release-072
   title: 保存と F2 の修正を v0.7.2 としてリリース
   estimateHours: 1
-  remainingHours: 1
-  notes: バージョンと変更履歴を更新し、リリース対象の検証、タグの公開、GitHub Actions とインストーラー添付を確認する。
+  remainingHours: 0
+  notes: バージョンと変更履歴を更新し、リリース対象の検証、タグの公開、GitHub Actions とインストーラー添付を確認する。 2026-09-12：公開コミット 78ad735 を独立した作業ディレクトリの Release 構成で検証（保存3件・F2関連4件成功）。v0.7.2 タグを push、GitHub Actions 34680309243 成功。正式リリース公開と KudakiSetup.exe（146283478 bytes）の添付を確認。https://github.com/dhq-boiler/Kudaki/releases/tag/v0.7.2
